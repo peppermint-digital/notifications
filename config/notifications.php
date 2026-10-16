@@ -263,4 +263,25 @@ return [
     */
     'run_migrations' => env('NOTIFICATIONS_RUN_MIGRATIONS', false),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Wie die Systeme heissen
+    |--------------------------------------------------------------------------
+    |
+    | Ueber die Leitung kommt ein Produkt-Kuerzel (`peppermint-manager`). Was
+    | es fuer einen Leser heisst, steht hier — und nur hier, damit der
+    | Posteingang in jedem System dieselben Woerter benutzt.
+    |
+    | `local` ist der Name DIESES Systems. Er steht an den Zeilen, die von
+    | hier stammen; die tragen kein Kuerzel, weil es fuer sie keines gibt.
+    | Ohne Angabe wird `app.name` genommen.
+    |
+    */
+    'labels' => [
+        'local' => env('NOTIFICATIONS_LOCAL_LABEL'),
+
+        /** @var array<string, string> Kuerzel => Name */
+        'sources' => [],
+    ],
+
 ];
