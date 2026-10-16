@@ -358,3 +358,66 @@ describe('Die Beschriftung reist mit', function () {
         expect($nutzlast->label)->toBe('Erwaehnung');
     });
 });
+
+describe('Empfang ueber die Bruecke', function () {
+    it('legt an, was die Bruecke als Ereignis hereinreicht', function (): void {
+        // Die Luecke, die lange offen war: Das AI Brain empfaengt ueber einen
+        // eigenen Endpunkt (es ist der Hub), ein PRODUKT aber ueber das
+        // Bruecken-Ereignis. Solange man nur zum Hub schickt, faellt das
+        // nicht auf — erst wenn ein zweites Produkt abonniert, und dann
+        // steht dort nichts.
+        //
+        // Das Bruecken-Paket ist hier nicht installiert, also wird das
+        // Ereignis nachgestellt: eine Klasse mit `type` und `payload`, genau
+        // was der Horcher liest.
+        $ereignis = new class
+        {
+            public object $event;
+
+            public function __construct()
+            {
+                $this->event = (object) [
+                    'type' => BrainMirror::EVENT_TYPE,
+                    'payload' => [
+                        'recipient_email' => 'empfaenger@beispiel.test',
+                        'kind' => 'task_assigned',
+                        'label' => 'Aufgabe zugewiesen',
+                        'title' => 'Angebot nachfassen',
+                        'origin' => 'peppermint-manager',
+                        'origin_id' => 99,
+                    ],
+                ];
+            }
+        };
+
+        // Der Horcher, wie ihn der ServiceProvider einhaengt.
+        $verarbeiten = function (object $e): void {
+            if (($e->event->type ?? null) !== BrainMirror::EVENT_TYPE) {
+                return;
+            }
+
+            app(MirrorReceiver::class)->empfangen((array) ($e->event->payload ?? []));
+        };
+
+        $verarbeiten($ereignis);
+
+        expect(Notification::count())->toBe(1)
+            ->and(Notification::first()->field('title'))->toBe('Angebot nachfassen');
+    });
+
+    it('laesst andere Ereignisarten in Ruhe', function (): void {
+        $fremd = (object) ['event' => (object) ['type' => 'deal.won', 'payload' => ['x' => 1]]];
+
+        $verarbeiten = function (object $e): void {
+            if (($e->event->type ?? null) !== BrainMirror::EVENT_TYPE) {
+                return;
+            }
+
+            app(MirrorReceiver::class)->empfangen((array) ($e->event->payload ?? []));
+        };
+
+        $verarbeiten($fremd);
+
+        expect(Notification::count())->toBe(0);
+    });
+});

@@ -3,6 +3,7 @@
 namespace Peppermint\Notifications;
 
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use Peppermint\Notifications\Delivery\Notifier;
 use Peppermint\Notifications\Events\NotificationCreated;
@@ -81,5 +82,52 @@ class NotificationsServiceProvider extends ServiceProvider
         // und sie drueben als zweite Zeile anzulegen waere genau die Flut,
         // gegen die das Rollen gebaut ist.
         Event::listen(NotificationCreated::class, [BrainMirror::class, 'handle']);
+
+        $this->empfangVerdrahten();
+    }
+
+    /**
+     * Die EMPFANGENDE Seite: was der Hub zurueckspiegelt, lokal anlegen.
+     *
+     * Die Bruecke feuert `AiBrainEventReceived` fuer jedes signierte
+     * Ereignis, das AI Brain an dieses Produkt schickt. Davon interessiert
+     * hier genau eine Art.
+     *
+     * ## Warum das lange gefehlt hat
+     *
+     * Beim Bau der Spiegelung war die sendende Seite offensichtlich und die
+     * empfangende nicht: Das AI Brain empfaengt ueber seinen eigenen
+     * Endpunkt (es ist der Hub), und solange man nur dorthin schickt,
+     * funktioniert alles. Dass ein PRODUKT auch empfaengt, faellt erst auf,
+     * wenn ein zweites abonniert — und dann steht da nichts.
+     *
+     * Aufgefallen beim Erklaeren des Aufbaus, nicht beim Bauen.
+     */
+    private function empfangVerdrahten(): void
+    {
+        $ereignis = 'Peppermint\\AiBrainBridge\\Events\\AiBrainEventReceived';
+
+        if (! class_exists($ereignis)) {
+            // Ohne Bruecke gibt es nichts zu empfangen. Das meldet bereits
+            // der BrainMirror beim ersten Sendeversuch — eine zweite Warnung
+            // an derselben Ursache waere nur Rauschen.
+            return;
+        }
+
+        Event::listen($ereignis, function (object $e): void {
+            if (($e->event->type ?? null) !== BrainMirror::EVENT_TYPE) {
+                return;
+            }
+
+            try {
+                app(MirrorReceiver::class)->empfangen((array) ($e->event->payload ?? []));
+            } catch (\Throwable $fehler) {
+                // Fail-open: Eine Meldung, die hier nicht ankommt, darf den
+                // Empfang der uebrigen Ereignisse nicht stoeren.
+                Log::warning('Gespiegelte Benachrichtigung konnte nicht angelegt werden.', [
+                    'error' => $fehler->getMessage(),
+                ]);
+            }
+        });
     }
 }
