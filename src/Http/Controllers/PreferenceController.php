@@ -4,7 +4,6 @@ namespace Peppermint\Notifications\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Peppermint\Notifications\Preferences\Channel;
 use Peppermint\Notifications\Preferences\Level;
 use Peppermint\Notifications\Preferences\PreferenceResolver;
 
@@ -23,20 +22,7 @@ class PreferenceController
      */
     public function index(Request $request): JsonResponse
     {
-        return response()->json([
-            'types' => $this->loeser->matrix($request->user()),
-            // Damit die Maske die Auswahl aufbauen kann, ohne die Stufen zu
-            // kennen. Sonst stuenden dieselben drei Woerter noch einmal im
-            // Frontend — und wuerden beim naechsten Mal nur dort ergaenzt.
-            'channels' => array_map(
-                static fn (Channel $weg): array => ['key' => $weg->value, 'label' => $weg->label()],
-                Channel::alle(),
-            ),
-            'levels' => array_map(
-                static fn (Level $stufe): array => ['key' => $stufe->value, 'label' => $stufe->label()],
-                Level::cases(),
-            ),
-        ]);
+        return response()->json($this->loeser->props($request->user()));
     }
 
     /**

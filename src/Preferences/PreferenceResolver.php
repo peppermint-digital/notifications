@@ -125,6 +125,30 @@ class PreferenceResolver
     }
 
     /**
+     * Alles, was die Maske braucht — Matrix und Vokabular.
+     *
+     * Die Woerter fuer Wege und Stufen kommen MIT. Stuenden sie im Frontend,
+     * waeren sie beim naechsten Mal nur dort ergaenzt — und die Maske boete
+     * eine Stufe an, die der Server nicht kennt.
+     *
+     * @return array{types: array<int, array<string, mixed>>, channels: array<int, array<string, string>>, levels: array<int, array<string, string>>}
+     */
+    public function props(Model|int|string $user): array
+    {
+        return [
+            'types' => $this->matrix($user),
+            'channels' => array_map(
+                static fn (Channel $weg): array => ['key' => $weg->value, 'label' => $weg->label()],
+                Channel::alle(),
+            ),
+            'levels' => array_map(
+                static fn (Level $stufe): array => ['key' => $stufe->value, 'label' => $stufe->label()],
+                Level::cases(),
+            ),
+        ];
+    }
+
+    /**
      * Eine Entscheidung festhalten.
      *
      * `null` loescht sie — dann gilt wieder die Vorgabe. Das ist nicht
