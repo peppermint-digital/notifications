@@ -52,6 +52,25 @@ class Notification extends Model
     protected $guarded = [];
 
     /**
+     * Der Schlüsseltyp der adoptierten Tabelle.
+     *
+     * Nicht alle vier Produkte zählen hoch: AI Brain, CRM und Verwaltung
+     * stehen auf der Laravel-Standardtabelle mit einem UUID-Schlüssel, nur der
+     * Manager hat eine ganze Zahl. Ohne diese beiden Methoden castet Eloquent
+     * einen UUID zu `int` — aus `9b1d…` wird `9`, und zwei Meldungen tragen
+     * plötzlich dieselbe Kennung.
+     */
+    public function getKeyType(): string
+    {
+        return (string) config('notifications.key_type', 'int');
+    }
+
+    public function getIncrementing(): bool
+    {
+        return $this->getKeyType() === 'int';
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

@@ -52,6 +52,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Der Schluesseltyp
+    |--------------------------------------------------------------------------
+    |
+    | `int` oder `string`.
+    |
+    | Drei der vier Produkte stehen auf der Laravel-Standardtabelle mit einem
+    | UUID-Schluessel, nur der Manager zaehlt hoch. Ohne die richtige Angabe
+    | castet Eloquent einen UUID zu einer Zahl — aus `9b1d…` wird `9`, und zwei
+    | Meldungen tragen ploetzlich dieselbe Kennung.
+    |
+    */
+    'key_type' => env('NOTIFICATIONS_KEY_TYPE', 'int'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Spalten
     |--------------------------------------------------------------------------
     |
@@ -63,7 +78,15 @@ return [
     | in einem `data`-JSON. Das ist keine Geschmacksfrage: Buendeln, Sortieren
     | und Indexieren braucht Spalten. Die drei Produkte mit der
     | Laravel-Standardform bekommen sie additiv nachgeruestet, der Altbestand
-    | wird aus `data` befuellt. Gelesen wird dabei nichts geloescht.
+    | wird aus `data` befuellt. Geloescht wird dabei nichts.
+    |
+    | ACHTUNG bei der Standardform: Dort ist `notifiable_*` der EMPFAENGER,
+    | nicht der Gegenstand — und `type` die Notification-Klasse, nicht die Art.
+    | Beides bekommt deshalb eigene Spalten und wird hier umgebogen:
+    |
+    |     'type'            => 'kind',
+    |     'notifiable_type' => 'subject_type',
+    |     'notifiable_id'   => 'subject_id',
     |
     */
     'columns' => [
