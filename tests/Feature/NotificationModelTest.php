@@ -160,3 +160,20 @@ it('laesst eine Farbe an der Meldung die Vorgabe der Art schlagen', function ():
     expect(meldung(['type' => 'infra.server'])->colorName())->toBe('red')
         ->and(meldung(['type' => 'infra.server', 'color' => 'green'])->colorName())->toBe('green');
 });
+
+it('zeigt eine Meldung ganz ohne Art an, statt die Liste zu zerreissen', function (): void {
+    // In der Zielform ist `type` nicht leer erlaubt — eine NEUE Meldung ohne
+    // Art ist ein Fehler. In einer adoptierten Tabelle steht dort aber
+    // durchaus null, und `(string) null` ist der leere String. Genau der
+    // kommt im Verzeichnis an, und genau der hat im AI Brain beim Umstieg die
+    // Glocke zerrissen: 17 Bestandszeilen ohne Marke.
+    $m = Notification::create([
+        'user_id' => $this->empfaenger->id,
+        'type' => '',
+        'title' => 'Aus einer Zeit vor dem Vokabular',
+    ]);
+
+    expect($m->typeDefinition()->label)->toBe('Benachrichtigung')
+        ->and($m->iconName())->toBe('bell')
+        ->and($m->colorName())->toBe('gray');
+});

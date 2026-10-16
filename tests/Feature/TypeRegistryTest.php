@@ -99,3 +99,17 @@ it('gibt alle Arten sortiert zurueck — die Grundlage der Einstellungs-Matrix',
 
     expect($register->keys())->toBe(['chat.message', 'mention', 'task.assigned']);
 });
+
+it('wirft nicht, wenn die Art LEER ist — der haeufigste Fall im Bestand', function (): void {
+    // Der Rueckfall soll die Ausnahme verhindern; wirft er selbst, richtet er
+    // genau den Schaden an, gegen den er gebaut ist. Im AI Brain traf das beim
+    // Umstieg 17 Bestandszeilen — und eine davon haette die ganze Glocke
+    // zerrissen, nicht nur ihre eigene Zeile.
+    $register = registry(rueckfall: ['label' => 'Benachrichtigung', 'icon' => 'bell', 'color' => 'gray']);
+
+    $art = $register->get('');
+
+    expect($art->key)->toBe(TypeRegistry::UNBEKANNT)
+        ->and($art->label)->toBe('Benachrichtigung')
+        ->and($art->icon)->toBe('bell');
+});

@@ -25,6 +25,9 @@ use Peppermint\Notifications\Exceptions\UnknownNotificationType;
  */
 class TypeRegistry
 {
+    /** Der Schluessel, unter dem eine Meldung ohne Art gefuehrt wird. */
+    public const UNBEKANNT = 'unknown';
+
     /** @var array<string, NotificationType> */
     private array $types = [];
 
@@ -90,7 +93,16 @@ class TypeRegistry
         }
 
         return new NotificationType(
-            key: $key,
+            // Ein LEERER Schluessel ist der Normalfall, nicht der Rand: Eine
+            // Meldung ohne Art hat dort null stehen, und im AI Brain traf das
+            // beim Umstieg 17 Bestandszeilen.
+            //
+            // Ohne diesen Ersatz wirft der Konstruktor hier — ausgerechnet im
+            // Rueckfall, der die Ausnahme ja verhindern soll. Das Ergebnis
+            // waere genau der Schaden, gegen den der Rueckfall gebaut ist:
+            // eine einzige unvollstaendige Zeile nimmt dem Leser die ganze
+            // Liste.
+            key: $key !== '' ? $key : self::UNBEKANNT,
             label: (string) ($this->rueckfall['label'] ?? 'Benachrichtigung'),
             icon: (string) ($this->rueckfall['icon'] ?? 'bell'),
             color: (string) ($this->rueckfall['color'] ?? 'gray'),
