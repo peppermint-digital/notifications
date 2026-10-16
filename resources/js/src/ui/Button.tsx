@@ -10,7 +10,7 @@ import { cn } from './utils';
  * davon ein anderer. Die Klassen folgen trotzdem den shadcn-Farbtokens, damit
  * der Knopf sich in jedem Thema einfuegt.
  */
-type Variant = 'ghost' | 'outline' | 'destructive';
+type Variant = 'ghost' | 'outline' | 'destructive' | 'primary';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: Variant;
@@ -22,6 +22,10 @@ const VARIANTEN: Record<Variant, string> = {
     ghost: 'hover:bg-accent hover:text-accent-foreground',
     outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
     destructive: 'text-destructive hover:bg-destructive/10 hover:text-destructive',
+    // Der Ein-Zustand eines Filters. Ein Filterknopf ohne gefuellte Variante
+    // sieht im Ein- wie im Aus-Zustand gleich aus — und dann weiss niemand,
+    // warum die Liste kuerzer ist als erwartet.
+    primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
 };
 
 export function Button({ variant = 'ghost', icon = false, className, ...props }: ButtonProps) {

@@ -209,6 +209,22 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
  * Höckerschrift. Die Umschreibung steht hier und nicht in jeder Komponente —
  * sonst entscheidet jede Ansicht neu, wie das Feld heißt.
  */
+/**
+ * Eine Serverantwort in die Form des Pakets bringen.
+ *
+ * Der Haken tut das fuer seine eigenen Abrufe von selbst. Nach aussen gereicht
+ * wird es fuer die VORBEFUELLUNG aus Server-Props, die am Haken vorbeikommt:
+ * Jedes Produkt hatte diese Umschreibung sonst selbst zu schreiben, und beim
+ * ersten Mal fiel dabei prompt `source` unter den Tisch — womit der Filter
+ * nach Herkunft auf der vorbefuellten Seite leer blieb.
+ */
+export function normalizeFeed(roh: { items?: unknown[]; unread_count?: number } | null | undefined): NotificationFeed {
+    return {
+        items: (roh?.items ?? []).map(normalisieren),
+        unreadCount: roh?.unread_count ?? 0,
+    };
+}
+
 function normalisieren(roh: unknown): NotificationItem {
     const r = roh as Record<string, unknown>;
 

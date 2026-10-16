@@ -223,3 +223,24 @@ it('zaehlt ungelesen ohne die ganze Liste aufzubauen', function (): void {
 
     expect($this->feed->unreadCount($this->ich))->toBe(5);
 });
+
+/* ------------------------------------------------- Herkunft */
+
+it('nennt die Herkunft einer gespiegelten Meldung', function (): void {
+    // Ohne diese Angabe steht in jedem System alles nebeneinander und es ist
+    // nicht mehr erkennbar, wo etwas passiert ist.
+    $this->notifier->send(to: $this->ich, type: 'mention', title: 'Aus dem Manager', data: [
+        'mirror_origin' => 'peppermint-manager',
+    ]);
+
+    expect($this->feed->for($this->ich)['items'][0]['source'])->toBe('peppermint-manager');
+});
+
+it('laesst die Herkunft einer eigenen Meldung leer', function (): void {
+    // `null` heisst „von hier". Den eigenen Produkt-Slug einzusetzen waere
+    // bequemer, machte aber jede Zeile zu einer fremden — und die Ansicht
+    // schriebe an JEDE ein Herkunfts-Abzeichen.
+    $this->notifier->send(to: $this->ich, type: 'mention', title: 'Von hier');
+
+    expect($this->feed->for($this->ich)['items'][0]['source'])->toBeNull();
+});

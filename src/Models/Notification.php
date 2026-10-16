@@ -341,6 +341,25 @@ class Notification extends Model
     }
 
     /**
+     * Aus welchem System die Meldung stammt — oder `null` fuer „von hier".
+     *
+     * Steht in `data.mirror_origin`, seit der Empfaenger es dort hinterlegt.
+     * Die Spalte dafuer gibt es bewusst nicht: Sie waere in vier Produkten
+     * nachzuruesten, um eine Angabe zu tragen, die nur fuer gespiegelte
+     * Zeilen existiert.
+     *
+     * Die Unterscheidung ist seit der Spiegelung nicht mehr kosmetisch. In
+     * jedem System steht jetzt alles; ohne Herkunft ist „was ist HIER
+     * passiert?" nicht mehr beantwortbar.
+     */
+    public function sourceName(): ?string
+    {
+        $herkunft = ($this->field('data') ?? [])['mirror_origin'] ?? null;
+
+        return is_string($herkunft) && $herkunft !== '' ? $herkunft : null;
+    }
+
+    /**
      * Das Symbol: was an der Meldung steht, schlaegt die Vorgabe der Art.
      *
      * So kann eine einzelne Meldung abweichen, ohne dass dafuer eine eigene

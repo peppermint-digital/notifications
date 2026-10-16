@@ -57,6 +57,20 @@ export interface NotificationListProps {
     /** Zusatzzeilen zwischen Titel und Nachricht. */
     renderDetails?: (item: NotificationItem) => ReactNode;
 
+    /**
+     * Aus welchem System die Zeile stammt — als Wort, nicht als Kuerzel.
+     *
+     * Ohne Angabe steht keine Herkunft an der Zeile. Das war lange der einzige
+     * Zustand und ist es fuer ein Produkt ohne AI Brain weiterhin: Wenn alles
+     * von hier kommt, ist „von hier" keine Information.
+     *
+     * Sobald gespiegelt wird, kehrt sich das um — dann steht in jedem System
+     * alles, und ohne Herkunft ist nicht mehr erkennbar, wo etwas passiert ist.
+     * Gereicht wird trotzdem eine BESCHRIFTUNG und kein Kuerzel: Was
+     * `peppermint-manager` fuer einen Leser heisst, weiss das Produkt.
+     */
+    sourceLabel?: (item: NotificationItem) => string | null;
+
     /** Einen Zeitpunkt als Text. Ohne Angabe die rohe ISO-Zeichenkette. */
     formatTime?: (iso: string) => string;
 
@@ -75,6 +89,7 @@ export function NotificationList({
     isDuplicate,
     renderActions,
     renderDetails,
+    sourceLabel,
     formatTime = (iso) => iso,
     busy = false,
     emptyLabel = 'Keine Benachrichtigungen',
@@ -178,6 +193,7 @@ export function NotificationList({
                                     onDelete={onDelete}
                                     renderActions={renderActions}
                                     renderDetails={renderDetails}
+                                    sourceLabel={sourceLabel}
                                     formatTime={formatTime}
                                 />
                             ))}
@@ -199,6 +215,7 @@ export function NotificationList({
                                     onDelete={onDelete}
                                     renderActions={renderActions}
                                     renderDetails={renderDetails}
+                                    sourceLabel={sourceLabel}
                                     formatTime={formatTime}
                                 />
                             ))}
@@ -220,6 +237,7 @@ interface ZeileProps {
     onDelete: (ids: Array<number | string>) => void | Promise<void>;
     renderActions?: (item: NotificationItem) => ReactNode;
     renderDetails?: (item: NotificationItem) => ReactNode;
+    sourceLabel?: (item: NotificationItem) => string | null;
     formatTime: (iso: string) => string;
 }
 
@@ -233,9 +251,11 @@ function Zeile({
     onDelete,
     renderActions,
     renderDetails,
+    sourceLabel,
     formatTime,
 }: ZeileProps) {
     const Symbol = notificationIcon(item.icon);
+    const herkunft = sourceLabel?.(item) ?? null;
 
     return (
         <div
@@ -258,6 +278,7 @@ function Zeile({
                             hinter der eine Meldung steht, braucht kein „1×". */}
                         {item.bundleCount > 1 && <Badge>{item.bundleCount}×</Badge>}
                         {doppelt && <Badge variant="outline">steht auch anderswo</Badge>}
+                        {herkunft && <Badge variant="outline">{herkunft}</Badge>}
                     </div>
 
                     {renderDetails?.(item)}
@@ -268,7 +289,7 @@ function Zeile({
                         <span>{formatTime(item.createdAt)}</span>
                         {item.triggeredBy && <span className="truncate">· von {item.triggeredBy}</span>}
                         {item.typeLabel && <span className="truncate">· {item.typeLabel}</span>}
-                        {/* `source` steht hier bewusst NICHT.
+                        {/* Das rohe `source` steht hier bewusst NICHT.
                             Es ist ein technisches Feld — die Quelle einer
                             Zeile, an der die Aktionen hängen („erledigen"
                             statt „gelesen") und später das Produkt, aus dem
@@ -276,9 +297,9 @@ function Zeile({
                             der Beschriftung las es sich doppelt:
                             „· Erinnerung · reminder".
 
-                            Wer die Herkunft zeigen will, tut das über
-                            `renderDetails` — dort kann sie heißen, wie sie
-                            für den Leser heißen soll. */}
+                            Wer die Herkunft zeigen will, gibt `sourceLabel`
+                            mit — dann steht sie als Abzeichen oben, in dem
+                            Wort, das der Leser kennt. */}
                     </div>
                 </div>
 

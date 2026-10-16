@@ -175,6 +175,9 @@ class NotificationFeed
             'subject_id' => $m->field('notifiable_id'),
             'is_read' => $m->isRead(),
             'created_at' => $m->field('created_at')?->toIso8601String(),
+            // Woher die Meldung kam. `null` heisst „von hier" — die Ansicht
+            // filtert danach, seit in jedem System alles steht.
+            'source' => $m->sourceName(),
         ];
     }
 
