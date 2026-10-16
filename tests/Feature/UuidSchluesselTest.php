@@ -199,3 +199,40 @@ it('stellt ueber den Notifier zu, wenn die Alt-Spalten nachgefuellt werden', fun
 
     Notification::flushEventListeners();
 });
+
+it('erzeugt den UUID selbst, wenn niemand einen mitgibt', function (): void {
+    // Solange das Paket nur liest, faellt das nicht auf: Geschrieben wird
+    // dann ueber Laravels Notification-Weg, und der setzt den Schluessel.
+    // Beim Spiegeln legt das Paket zum ersten Mal SELBST an — und dort
+    // scheiterte das INSERT an „NOT NULL constraint failed: id".
+    $m = Notification::create([
+        'user_id' => $this->ich->id,
+        'type' => 'App\\Notifications\\AppNotification',
+        'notifiable_type' => 'user',
+        'notifiable_id' => $this->ich->id,
+        'data' => '{}',
+        'kind' => 'infra.server',
+        'title' => 'Ohne mitgegebene Kennung',
+    ]);
+
+    expect($m->getKey())->toBeString()
+        ->and($m->getKey())->toHaveLength(36)
+        ->and(Notification::query()->whereKey($m->getKey())->exists())->toBeTrue();
+});
+
+it('laesst eine mitgegebene Kennung in Ruhe', function (): void {
+    $eigene = (string) Str::uuid();
+
+    $m = Notification::create([
+        'id' => $eigene,
+        'user_id' => $this->ich->id,
+        'type' => 'App\\Notifications\\AppNotification',
+        'notifiable_type' => 'user',
+        'notifiable_id' => $this->ich->id,
+        'data' => '{}',
+        'kind' => 'infra.server',
+        'title' => 'Mit eigener Kennung',
+    ]);
+
+    expect($m->getKey())->toBe($eigene);
+});

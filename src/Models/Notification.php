@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Str;
 use Peppermint\Notifications\Types\NotificationType;
 use Peppermint\Notifications\Types\TypeRegistry;
 
@@ -68,6 +69,33 @@ class Notification extends Model
     public function getIncrementing(): bool
     {
         return $this->getKeyType() === 'int';
+    }
+
+    /**
+     * Einen Schluessel erzeugen, wo die Tabelle keinen vergibt.
+     *
+     * Bei `key_type = 'string'` ist `id` ein UUID und NOT NULL — die
+     * Datenbank zaehlt nichts hoch. Solange das Paket nur liest und
+     * aktualisiert, faellt das nicht auf: Geschrieben wird dann ueber
+     * Laravels eigenen Notification-Weg, und der setzt den Schluessel selbst.
+     *
+     * Sobald das Paket SELBST anlegt — beim Spiegeln aus einem anderen
+     * Produkt, oder wenn ein Produkt mit Standardform den Notifier benutzt —
+     * fehlt er, und das INSERT scheitert an einer NOT-NULL-Bedingung.
+     *
+     * Genau dort ist es aufgefallen (16.10.2026, erste Spiegelung ins Brain).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $meldung): void {
+            if ($meldung->getKeyType() !== 'string') {
+                return;
+            }
+
+            if ($meldung->getKey() === null || $meldung->getKey() === '') {
+                $meldung->setAttribute($meldung->getKeyName(), (string) Str::uuid());
+            }
+        });
     }
 
     /**
