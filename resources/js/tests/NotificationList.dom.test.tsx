@@ -211,3 +211,34 @@ describe('Zeitangabe', () => {
         expect(screen.getByText('vor 2 Stunden')).toBeDefined();
     });
 });
+
+describe('Die Quelle ist kein Anzeigetext', () => {
+    it('zeigt `source` nicht in der Metazeile', () => {
+        // Im Manager las es sich doppelt: „· Erinnerung · reminder". `source`
+        // ist ein technisches Feld — die Quelle, an der die Aktionen haengen
+        // („erledigen" statt „gelesen"), und spaeter das Produkt, aus dem eine
+        // gespiegelte Meldung stammt. Wer die Herkunft zeigen will, nimmt
+        // renderDetails und nennt sie, wie sie fuer den Leser heissen soll.
+        render(<NotificationList items={[meldung({ source: 'reminder', typeLabel: 'Erinnerung' })]} {...leer} />);
+
+        expect(screen.getByText(/Erinnerung/)).toBeDefined();
+        expect(screen.queryByText(/reminder/)).toBeNull();
+    });
+
+    it('unterscheidet Zeilen gleicher Kennung aus verschiedenen Quellen', () => {
+        // Eine Wiedervorlage #1 und eine Benachrichtigung #1 sind zwei Dinge.
+        // Ohne die Quelle im Schluessel rendert React nur eine davon.
+        render(
+            <NotificationList
+                items={[
+                    meldung({ id: 1, ids: [1], source: 'reminder', title: 'Wiedervorlage' }),
+                    meldung({ id: 1, ids: [1], source: 'notification', title: 'Benachrichtigung' }),
+                ]}
+                {...leer}
+            />,
+        );
+
+        expect(screen.getByText('Wiedervorlage')).toBeDefined();
+        expect(screen.getByText('Benachrichtigung')).toBeDefined();
+    });
+});

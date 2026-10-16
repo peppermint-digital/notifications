@@ -268,7 +268,17 @@ function Zeile({
                         <span>{formatTime(item.createdAt)}</span>
                         {item.triggeredBy && <span className="truncate">· von {item.triggeredBy}</span>}
                         {item.typeLabel && <span className="truncate">· {item.typeLabel}</span>}
-                        {item.source && <span className="truncate">· {item.source}</span>}
+                        {/* `source` steht hier bewusst NICHT.
+                            Es ist ein technisches Feld — die Quelle einer
+                            Zeile, an der die Aktionen hängen („erledigen"
+                            statt „gelesen") und später das Produkt, aus dem
+                            eine gespiegelte Meldung stammt. Als Text neben
+                            der Beschriftung las es sich doppelt:
+                            „· Erinnerung · reminder".
+
+                            Wer die Herkunft zeigen will, tut das über
+                            `renderDetails` — dort kann sie heißen, wie sie
+                            für den Leser heißen soll. */}
                     </div>
                 </div>
 
