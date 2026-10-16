@@ -283,10 +283,15 @@ Fremde Quellen — im Manager die Wiedervorlagen — mischt das Produkt selbst i
 ### Abhängigkeiten
 
 `lucide-react` ist eine **Peer**-Abhängigkeit mit weiter Spanne
-(`^0.400.0 || ^1.0.0`). Gemessen am 16.10.2026: AI Brain liegt auf `^0.475`,
-Manager, CRM und Verwaltung auf `^1.x`. Eine engere Angabe machte die
+(`>=0.400.0 <2`). Gemessen am 16.10.2026: AI Brain liegt auf `0.475`,
+Manager, CRM und Verwaltung auf `1.x`. Eine engere Angabe machte die
 Installation in mindestens einem der vier unmöglich — der Fehler, der beim
 Tiptap-Paket schon einmal jede Installation gekostet hat.
+
+**Und die Falle in der Falle:** Der erste Versuch hieß `^0.400.0 || ^1.0.0`
+und scheiterte trotzdem. Bei Versionen unter 1.0 fixiert das Dach die
+**Minor**-Stelle — `^0.400.0` heißt `>=0.400.0 <0.401.0` und schließt `0.475`
+aus. Wer eine Spanne über 0.x-Versionen braucht, schreibt sie aus.
 
 Radix wird **nicht** gezogen. Die Klappe der Glocke ist von Hand gebaut: eine
 weitere Peer-Abhängigkeit, die in vier Produkten in vier Fassungen vorliegen
