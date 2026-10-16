@@ -177,6 +177,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Alt-Spalten der adoptierten Tabelle
+    |--------------------------------------------------------------------------
+    |
+    | Spalten, die die vorhandene Tabelle als NOT NULL fuehrt und die das
+    | Paket nicht kennt.
+    |
+    | Die Laravel-Standardtabelle — drei der vier Produkte stehen darauf —
+    | verlangt `type`, `notifiable_type`, `notifiable_id` und `data`. Fuer das
+    | Paket sind das Altlasten: `type` ist dort die Notification-Klasse,
+    | `notifiable_*` der Empfaenger. Solange nur Laravel schreibt, fuellt
+    | Laravel sie. Sobald das Paket SELBST anlegt (beim Spiegeln, oder wenn
+    | ein Produkt mit Standardform den Notifier benutzt), scheitert das INSERT.
+    |
+    |     'legacy_columns' => [
+    |         'type' => 'App\Notifications\AppNotification',
+    |         'notifiable_type' => 'user',
+    |         'notifiable_id' => fn (\$m) => \$m->field('user_id'),
+    |         'data' => '{}',
+    |     ],
+    |
+    | Ein Wert kann fest sein oder eine Funktion, die die Meldung bekommt.
+    | Gesetzt wird nur, was noch leer ist.
+    |
+    */
+    'legacy_columns' => [],
+
+    /*
+    |--------------------------------------------------------------------------
     | Spiegelung ueber AI Brain
     |--------------------------------------------------------------------------
     |

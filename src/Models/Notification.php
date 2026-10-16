@@ -2,6 +2,7 @@
 
 namespace Peppermint\Notifications\Models;
 
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -88,14 +89,51 @@ class Notification extends Model
     protected static function booted(): void
     {
         static::creating(function (self $meldung): void {
-            if ($meldung->getKeyType() !== 'string') {
-                return;
-            }
-
-            if ($meldung->getKey() === null || $meldung->getKey() === '') {
+            if ($meldung->getKeyType() === 'string'
+                && ($meldung->getKey() === null || $meldung->getKey() === '')) {
                 $meldung->setAttribute($meldung->getKeyName(), (string) Str::uuid());
             }
+
+            $meldung->altSpaltenFuellen();
         });
+    }
+
+    /**
+     * Spalten füllen, die die adoptierte Tabelle verlangt und das Paket nicht
+     * kennt.
+     *
+     * Die Laravel-Standardtabelle führt `type`, `notifiable_type`,
+     * `notifiable_id` und `data` als NOT NULL. Für das Paket sind das
+     * Altlasten: `type` ist dort die Notification-Klasse (die fachliche Art
+     * steht woanders), `notifiable_*` der Empfänger. Es befüllt sie nicht —
+     * und solange nur Laravel schreibt, muss es das auch nicht.
+     *
+     * Sobald das Paket selbst anlegt, scheitert das INSERT. Dreimal dasselbe
+     * im Produkt nachzubauen wäre dreimal dieselbe Gelegenheit, es falsch zu
+     * machen; deshalb hier, konfigurierbar:
+     *
+     *     'legacy_columns' => [
+     *         'type' => 'App\Notifications\AppNotification',
+     *         'notifiable_type' => 'user',
+     *         'notifiable_id' => fn ($m) => $m->field('user_id'),
+     *         'data' => '{}',
+     *     ],
+     *
+     * Ein Wert kann fest sein oder eine Funktion, die die Meldung bekommt.
+     * Gesetzt wird nur, was noch leer ist.
+     */
+    protected function altSpaltenFuellen(): void
+    {
+        /** @var array<string, mixed> $alt */
+        $alt = (array) config('notifications.legacy_columns', []);
+
+        foreach ($alt as $spalte => $wert) {
+            if ($this->getAttribute($spalte) !== null) {
+                continue;
+            }
+
+            $this->setAttribute($spalte, $wert instanceof Closure ? $wert($this) : $wert);
+        }
     }
 
     /**

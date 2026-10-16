@@ -236,3 +236,46 @@ it('laesst eine mitgegebene Kennung in Ruhe', function (): void {
 
     expect($m->getKey())->toBe($eigene);
 });
+
+it('fuellt die Alt-Spalten der Standardform, wenn das Paket selbst anlegt', function (): void {
+    // Die Standardtabelle fuehrt `type`, `notifiable_*` und `data` als NOT
+    // NULL. Das Paket kennt sie nicht — ohne diese Bruecke scheitert jedes
+    // INSERT, das nicht ueber Laravels Notification-Weg laeuft.
+    //
+    // Dreimal im Produkt nachgebaut waere es dreimal dieselbe Gelegenheit,
+    // es falsch zu machen.
+    config()->set('notifications.legacy_columns', [
+        'type' => 'App\\Notifications\\AppNotification',
+        'notifiable_type' => 'user',
+        'notifiable_id' => fn (Notification $m) => $m->field('user_id'),
+        'data' => '{}',
+    ]);
+
+    $m = Notification::create([
+        'user_id' => $this->ich->id,
+        'kind' => 'infra.server',
+        'title' => 'Ohne Alt-Spalten uebergeben',
+    ]);
+
+    expect($m->getAttribute('type'))->toBe('App\\Notifications\\AppNotification')
+        ->and($m->getAttribute('notifiable_type'))->toBe('user')
+        ->and($m->getAttribute('notifiable_id'))->toBe($this->ich->id)
+        // Und die Zeile ist ueber Laravels eigenen Weg auffindbar.
+        ->and(Notification::query()->whereKey($m->getKey())->exists())->toBeTrue();
+});
+
+it('ueberschreibt eine Alt-Spalte nicht, die schon gesetzt ist', function (): void {
+    config()->set('notifications.legacy_columns', ['type' => 'Vorgabe']);
+
+    $m = Notification::create([
+        'type' => 'Ausdruecklich gesetzt',
+        'notifiable_type' => 'user',
+        'notifiable_id' => $this->ich->id,
+        'data' => '{}',
+        'user_id' => $this->ich->id,
+        'kind' => 'infra.server',
+        'title' => 'T',
+    ]);
+
+    expect($m->getAttribute('type'))->toBe('Ausdruecklich gesetzt');
+});
