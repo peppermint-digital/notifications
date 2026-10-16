@@ -265,6 +265,45 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Wer bekommt was, auf welchem Weg
+    |--------------------------------------------------------------------------
+    |
+    | Hier steht die VORGABE des Produkts — was sinnvoll ist. Was ein Mensch
+    | WILL, steht in `notification_preferences`, eine Zeile je Mensch und Art.
+    |
+    | Wer nichts eingestellt hat, hat keine Zeile und folgt dieser Vorgabe
+    | weiter — auch wenn sie sich spaeter aendert. Das ist der Grund, warum
+    | beim Einrichten nicht fuer jeden Menschen Zeilen angelegt werden.
+    |
+    | Stufen: `instant`, `digest`, `off`.
+    |
+    | Fuer E-Mail ist `digest` die Vorgabe, und das ist kein Zufall: Push und
+    | Glocke kosten eine Zeile, eine E-Mail kostet eine E-Mail. Bei 243
+    | Meldungen am Tag allein aus AI Brain ist „bei jeder Art eine Mail" ein
+    | Weg, sich selbst zuzuspammen — und wer zugespammt wird, schaltet nicht
+    | die Mails ab, sondern alles.
+    |
+    */
+    'preferences' => [
+        'defaults' => [
+            'push' => 'instant',
+            'inapp' => 'instant',
+            'email' => 'digest',
+        ],
+
+        /*
+        | Abweichungen je Art, zum Beispiel:
+        |
+        |     'per_type' => [
+        |         'invoice.approval' => ['email' => 'instant'],
+        |         'chat.message' => ['email' => 'off'],
+        |     ],
+        */
+        'per_type' => [],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Wie die Systeme heissen
     |--------------------------------------------------------------------------
     |

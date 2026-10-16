@@ -11,6 +11,7 @@ use Peppermint\Notifications\Feed\NotificationActions;
 use Peppermint\Notifications\Feed\NotificationFeed;
 use Peppermint\Notifications\Mirroring\BrainMirror;
 use Peppermint\Notifications\Mirroring\MirrorReceiver;
+use Peppermint\Notifications\Preferences\PreferenceResolver;
 use Peppermint\Notifications\Types\TypeRegistry;
 
 class NotificationsServiceProvider extends ServiceProvider
@@ -33,6 +34,11 @@ class NotificationsServiceProvider extends ServiceProvider
         $this->app->singleton(MirrorReceiver::class);
         $this->app->singleton(NotificationFeed::class);
         $this->app->singleton(NotificationActions::class);
+
+        // Der Zwischenspeicher im Resolver lebt fuer die Dauer eines Aufrufs
+        // und ist deshalb geteilt: Eine Zustellung an zwanzig Menschen soll
+        // nicht zwanzig Mal dieselbe Tabelle lesen.
+        $this->app->singleton(PreferenceResolver::class);
     }
 
     public function boot(): void
@@ -57,6 +63,13 @@ class NotificationsServiceProvider extends ServiceProvider
         if (config('notifications.run_migrations', false)) {
             $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         }
+
+        // Die Einstellungen dagegen IMMER: Diese Tabelle gibt es nirgends,
+        // also gibt es auch keinen Bestand, auf den Ruecksicht zu nehmen
+        // waere. Der Riegel oben schuetzt die gewachsene Meldungstabelle —
+        // hier schuetzte er nichts und verhinderte nur, dass die Maske
+        // ueberhaupt etwas zu speichern haette.
+        $this->loadMigrationsFrom(__DIR__.'/../database/preferences-migrations');
 
         $this->spiegelungVerdrahten();
     }

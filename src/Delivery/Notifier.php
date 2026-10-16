@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Event;
 use Peppermint\Notifications\Events\NotificationCreated;
 use Peppermint\Notifications\Events\NotificationRolled;
 use Peppermint\Notifications\Models\Notification;
+use Peppermint\Notifications\Preferences\Channel;
+use Peppermint\Notifications\Preferences\PreferenceResolver;
 
 /**
  * Die eine Stelle, an der eine Meldung entsteht.
@@ -57,6 +59,10 @@ class Notifier
         $ausloeser = $this->id($triggeredBy);
 
         if ($this->istEigeneHandlung($empfaenger, $ausloeser)) {
+            return null;
+        }
+
+        if (! $this->willSehen($empfaenger, $type)) {
             return null;
         }
 
@@ -120,6 +126,10 @@ class Notifier
             return null;
         }
 
+        if (! $this->willSehen($empfaenger, $type)) {
+            return null;
+        }
+
         $bestehende = Notification::query()
             ->forUser($empfaenger)
             ->ofType($type)
@@ -174,6 +184,33 @@ class Notifier
      * Der Riegel steht im Manager 28 Mal einzeln da und fehlte an mindestens
      * einer Stelle, bis es jemandem auffiel. Hier steht er einmal.
      */
+    /**
+     * Will dieser Mensch Meldungen dieser Art ueberhaupt in der Anwendung sehen?
+     *
+     * Der Weg „in der Anwendung" ist hier der entscheidende, und zwar als
+     * einziger: Push und E-Mail haengen an {@see NotificationCreated} und
+     * entscheiden selbst. Steht die Glocke auf „aus", entsteht dagegen gar
+     * keine Zeile — und dann gibt es auch nichts zu pushen.
+     *
+     * ## Warum nicht anlegen und beim Anzeigen filtern
+     *
+     * Das waere die vorsichtigere Variante: nichts verlieren, nur verbergen.
+     * Sie waere hier aber die falsche. „Aus" heisst bei einem Posteingang
+     * nicht „sammle es und zeig es mir nicht", sondern „ich will das nicht
+     * haben". Eine Tabelle, die jahrelang mitschreibt, was niemand je sehen
+     * wird, ist genau die Halde, gegen die dieses Paket gebaut wurde.
+     *
+     * Rueckwirkend gilt es nicht: Was schon dasteht, bleibt stehen.
+     */
+    private function willSehen(int|string|null $empfaenger, string $art): bool
+    {
+        if ($empfaenger === null) {
+            return true;
+        }
+
+        return app(PreferenceResolver::class)->zustellen($empfaenger, $art, Channel::InApp);
+    }
+
     private function istEigeneHandlung(int|string $empfaenger, int|string|null $ausloeser): bool
     {
         return $ausloeser !== null && (string) $ausloeser === (string) $empfaenger;

@@ -49,6 +49,11 @@ abstract class TestCase extends Base
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
+        // Im Betrieb laedt der Provider diese Migration selbst — hier wird
+        // sie ausdruecklich geladen, weil `defineDatabaseMigrations` alle
+        // Tabellen vorher wegwirft.
+        $this->loadMigrationsFrom(__DIR__.'/../database/preferences-migrations');
+
         // Eine Nutzer-Tabelle, wie sie jedes aufnehmende Produkt mitbringt.
         Schema::create('users', function (Blueprint $table): void {
             $table->id();

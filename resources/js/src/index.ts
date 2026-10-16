@@ -2,6 +2,13 @@ export { NotificationBell, type NotificationBellProps } from './NotificationBell
 export { NotificationList, type NotificationListProps } from './NotificationList';
 export { NotificationPage, type NotificationPageProps } from './NotificationPage';
 export {
+    NotificationSettings,
+    type NotificationSettingsProps,
+    type PreferenceChannel,
+    type PreferenceRow,
+    type PreferenceVocabulary,
+} from './NotificationSettings';
+export {
     bekannteFarben,
     bekannteFlaechenfarben,
     bekannteSymbole,
