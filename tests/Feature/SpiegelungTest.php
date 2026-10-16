@@ -10,6 +10,8 @@ use Peppermint\Notifications\Mirroring\MirrorReceiver;
 use Peppermint\Notifications\Models\Notification;
 use Peppermint\Notifications\Tests\Support\User;
 use Peppermint\Notifications\Tests\Support\Widget;
+use Peppermint\Notifications\Types\NotificationType;
+use Peppermint\Notifications\Types\TypeRegistry;
 
 /**
  * Die Spiegelung: dieselbe Meldung in allen Produkten.
@@ -292,5 +294,67 @@ describe('Empfangen', function () {
         // gruppiert deshalb ueber ihren Titel.
         expect($liste['unread_count'])->toBe(2)
             ->and($liste['items'])->toHaveCount(2);
+    });
+});
+
+describe('Die Beschriftung reist mit', function () {
+    it('zeigt die Beschriftung des Absenders, nicht das Rueckfall-Wort', function (): void {
+        // Der Schluessel gehoert dem Absender: `task_assigned` ist ein
+        // Manager-Wort, das Brain nennt seine Arten `task.done`. Das
+        // Verzeichnis hier kennt ihn nicht — ohne die mitgereiste
+        // Beschriftung staende in der Zeile „Benachrichtigung", und das
+        // sagt nichts.
+        app(TypeRegistry::class)->register(
+            new NotificationType('infra.server', 'Server-Zustand', 'server', 'red')
+        );
+
+        app(MirrorReceiver::class)->empfangen([
+            'recipient_email' => 'empfaenger@beispiel.test',
+            'kind' => 'task_assigned',
+            'label' => 'Aufgabe zugewiesen',
+            'title' => 'Angebot nachfassen',
+            'icon' => 'user-plus',
+            'color' => 'blue',
+            'origin' => 'peppermint-manager',
+            'origin_id' => 1,
+        ]);
+
+        $zeile = app(NotificationFeed::class)->for($this->empfaenger)['items'][0];
+
+        expect($zeile['type_label'])->toBe('Aufgabe zugewiesen')
+            ->and($zeile['type_label'])->not->toBe('Benachrichtigung')
+            // Symbol und Farbe standen schon vorher an der Zeile.
+            ->and($zeile['icon'])->toBe('user-plus')
+            ->and($zeile['color'])->toBe('blue');
+    });
+
+    it('nimmt die eigene Beschriftung, wo die Art bekannt ist', function (): void {
+        // Eine eigene Meldung bleibt unberuehrt — die mitgereiste
+        // Beschriftung gilt nur fuer Gespiegeltes.
+        app(TypeRegistry::class)->register(
+            new NotificationType('mention', 'Erwaehnung', 'at-sign', 'cyan')
+        );
+
+        app(Notifier::class)->send(to: $this->empfaenger, type: 'mention', title: 'Erwaehnt');
+
+        $zeile = app(NotificationFeed::class)->for($this->empfaenger)['items'][0];
+
+        expect($zeile['type_label'])->toBe('Erwaehnung');
+    });
+
+    it('nimmt die Beschriftung beim Senden aus dem eigenen Verzeichnis mit', function (): void {
+        app(TypeRegistry::class)->register(
+            new NotificationType('mention', 'Erwaehnung', 'at-sign', 'cyan')
+        );
+
+        $m = Notification::create([
+            'user_id' => $this->empfaenger->id,
+            'type' => 'mention',
+            'title' => 'Erwaehnt',
+        ]);
+
+        $nutzlast = MirrorPayload::fromNotification($m, 'wer@beispiel.test', 'brain');
+
+        expect($nutzlast->label)->toBe('Erwaehnung');
     });
 });

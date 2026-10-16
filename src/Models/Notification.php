@@ -297,6 +297,29 @@ class Notification extends Model
     }
 
     /**
+     * Die Beschriftung fuer die Anzeige.
+     *
+     * Bei einer gespiegelten Meldung steht sie in `data.mirror_label` — die
+     * Art stammt aus einem anderen Produkt, und das eigene Verzeichnis kennt
+     * sie nicht. „Aufgabe zugewiesen" aus dem Manager ist drueben besser als
+     * das Rueckfall-Wort „Benachrichtigung".
+     *
+     * Ein eigenes Vokabular fuer fremde Arten zu pflegen waere der andere
+     * Weg — und bei vier Produkten mit zusammen ueber 70 Arten einer, den
+     * niemand aktuell haelt.
+     */
+    public function typeLabel(): string
+    {
+        $gespiegelt = ($this->field('data') ?? [])['mirror_label'] ?? null;
+
+        if (is_string($gespiegelt) && $gespiegelt !== '') {
+            return $gespiegelt;
+        }
+
+        return $this->typeDefinition()->label;
+    }
+
+    /**
      * Das Symbol: was an der Meldung steht, schlaegt die Vorgabe der Art.
      *
      * So kann eine einzelne Meldung abweichen, ohne dass dafuer eine eigene

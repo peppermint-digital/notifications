@@ -162,7 +162,7 @@ class NotificationFeed
             'ids' => $ids,
             'bundle_count' => count($ids),
             'type' => $m->field('type'),
-            'type_label' => $m->typeDefinition()->label,
+            'type_label' => $m->typeLabel(),
             'title' => $m->field('title'),
             'message' => $m->field('message'),
             'icon' => $m->iconName(),

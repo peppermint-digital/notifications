@@ -81,6 +81,10 @@ class MirrorReceiver
                 // zusammen ist der Riegel gegen die doppelte Zustellung.
                 'mirror_key' => $schluessel,
                 'mirror_origin' => $nutzlast->origin,
+                // Die Beschriftung des Absenders. Das Verzeichnis dieses
+                // Produkts kennt die fremde Art nicht und faende nur den
+                // Rueckfall.
+                'mirror_label' => $nutzlast->label,
             ],
         ]);
     }

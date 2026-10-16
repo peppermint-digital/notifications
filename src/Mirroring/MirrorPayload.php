@@ -33,6 +33,19 @@ final class MirrorPayload
         public readonly string $recipientEmail,
         public readonly string $kind,
         public readonly string $title,
+        /**
+         * Wie die Art beim ABSENDER heisst.
+         *
+         * Reist mit, weil der Empfaenger den Schluessel nicht kennt:
+         * `task_assigned` ist ein Manager-Wort, das Brain nennt seine Arten
+         * `task.done`. Ohne die Beschriftung stuende drueben das Rueckfall-
+         * Wort „Benachrichtigung" — und das sagt nichts.
+         *
+         * Ein gemeinsames Vokabular waere die Alternative. Es waere in jedem
+         * Produkt ein bisschen falsch; genau deshalb liefert das Paket auch
+         * keines.
+         */
+        public readonly ?string $label = null,
         public readonly ?string $message = null,
         public readonly ?string $link = null,
         public readonly ?string $icon = null,
@@ -57,6 +70,7 @@ final class MirrorPayload
             recipientEmail: $recipientEmail,
             kind: (string) $meldung->field('type'),
             title: (string) $meldung->field('title'),
+            label: $meldung->typeDefinition()->label,
             message: $meldung->field('message'),
             link: self::absolut($meldung->field('link'), $baseUrl),
             icon: $meldung->field('icon'),
@@ -76,6 +90,7 @@ final class MirrorPayload
             recipientEmail: (string) ($roh['recipient_email'] ?? ''),
             kind: (string) ($roh['kind'] ?? ''),
             title: (string) ($roh['title'] ?? ''),
+            label: $roh['label'] ?? null,
             message: $roh['message'] ?? null,
             link: $roh['link'] ?? null,
             icon: $roh['icon'] ?? null,
@@ -95,6 +110,7 @@ final class MirrorPayload
             'recipient_email' => $this->recipientEmail,
             'kind' => $this->kind,
             'title' => $this->title,
+            'label' => $this->label,
             'message' => $this->message,
             'link' => $this->link,
             'icon' => $this->icon,
