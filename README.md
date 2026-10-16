@@ -7,9 +7,9 @@ sich allein.
 Dazu `@peppermint-digital/notifications` aus demselben Repository: die
 Oberfläche, damit die Liste in jedem Produkt gleich aussieht.
 
-> **Stand:** N1 (Gerüst, Adoption, Typ-Register). Die Zustellmechanik (N2), die
-> Oberfläche (N3) und die Spiegelung über AI Brain (N7) folgen. Die Schritte
-> stehen als Aufgaben im AI-Brain-Projekt `notifications`.
+> **Stand:** N1 (Gerüst, Adoption, Typ-Register) und N2 (Zustellung, Bündelung,
+> Mengen-Zugriff). Die Oberfläche (N3) und die Spiegelung über AI Brain (N7)
+> folgen. Die Schritte stehen als Aufgaben im AI-Brain-Projekt `notifications`.
 
 ## Warum es das Paket gibt
 
@@ -120,6 +120,99 @@ Unterschied zu `peppermint/contacts`: Eine Benachrichtigung ist nichts wert,
 wenn sie beim Ausfall der Gegenstelle unsichtbar wird. Die Glocke zeigt dann
 einen unvollständigen Stand — aber sie zeigt einen. **Fail-open, nicht
 fail-closed.**
+
+## Benutzung
+
+### Zustellen
+
+```php
+app(Notifier::class)->send(
+    to: $empfaenger,
+    type: 'task.assigned',
+    title: 'Aufgabe zugewiesen',
+    message: "Du wurdest \"{$task->title}\" zugewiesen.",
+    subject: $task,
+    triggeredBy: auth()->user(),
+    link: "/tasks/{$task->id}",
+);
+```
+
+Gibt `null` zurück, wenn der **Einmal-Riegel** gegriffen hat — niemand wird
+über die eigene Handlung benachrichtigt. Im Manager steht diese Prüfung heute
+28 Mal einzeln da; hier einmal.
+
+Der Dienst **sucht keine Empfänger** („alle Projektmitglieder außer dem
+Auslöser" greift in produkteigene Beziehungen) und **pusht nicht selbst**. Er
+feuert `NotificationCreated`; wer pushen oder spiegeln will, hängt sich daran.
+
+### Rollen statt wiederholen
+
+```php
+app(Notifier::class)->rolling(
+    to: $empfaenger,
+    type: 'chat.message',
+    title: $unterhaltung->name,
+    message: fn (int $n) => "{$n} neue Nachrichten",
+    subject: $unterhaltung,
+    triggeredBy: $absender,
+);
+```
+
+Gibt es zu diesem Gegenstand schon eine **ungelesene** Meldung dieser Art für
+diese Person, wird sie fortgeschrieben statt verdoppelt. Erst wenn jemand
+gelesen hat, beginnt ein neuer Zyklus.
+
+Der Zähler steht in `data.rolled_count`, **nicht** im Text. Der Manager liest
+ihn heute per regulärem Ausdruck aus der Nachricht zurück
+(`/^(\d+) neue Nachrichten$/`) — das hält genau so lange, wie niemand den
+Wortlaut ändert, und beim Übersetzen des Produkts gar nicht.
+
+Fortschreiben feuert `NotificationRolled`, **nicht** `NotificationCreated`: Wer
+pusht, soll hier normalerweise schweigen. Der Browser hat die Meldung schon
+gezeigt, und ein zweiter Ton für dieselbe Sache ist genau die Flut, gegen die
+das Rollen gebaut ist.
+
+### Lesen
+
+```php
+app(NotificationFeed::class)->for($user);          // ['items' => [...], 'unread_count' => 7]
+app(NotificationFeed::class)->unreadCount($user);  // nur die Zahl
+```
+
+Gleichartige ungelesene Meldungen am selben Gegenstand bilden **eine** Zeile
+mit Zähler. Jede Zeile behält die Kennungen aller Meldungen dahinter (`ids`) —
+sonst träfe „gelesen" nur eine davon, und der Zähler im Kopf widerspräche der
+Liste darunter.
+
+Die Zahl am Abzeichen zählt **Einzelmeldungen**, nicht Zeilen: Sie soll sagen,
+wie viel ungesehen ist, nicht wie viele Kacheln daraus wurden.
+
+### Aktionen
+
+```php
+app(NotificationActions::class)->markRead($user, $ids);   // immer eine LISTE
+app(NotificationActions::class)->markAllRead($user);
+app(NotificationActions::class)->delete($user, $ids);
+```
+
+Der Empfänger-Filter **ist** die Berechtigung. Fremde Kennungen laufen ins
+Leere, statt den ganzen Aufruf scheitern zu lassen — bei gebündelten Zeilen
+kann eine veraltete Kennung dabei sein, ohne dass jemand etwas falsch macht.
+
+### Routen (optional)
+
+```php
+Route::middleware(['web', 'auth'])
+    ->prefix('notifications')
+    ->name('notifications.')
+    ->group(base_path('vendor/peppermint/notifications/routes/notifications.php'));
+```
+
+Mitgeliefert wegen einer Falle: Steht irgendwo eine Route mit Platzhalter
+(`/{notification}`), schluckt die Modellbindung `read-many` und `destroy-many`
+als Kennung. Im Manager steht deshalb ein Warnkommentar in `routes/web.php`.
+Hier gibt es gar keine Platzhalter-Route mehr — jede Aktion nimmt ohnehin eine
+Liste —, und ein Test hält das fest.
 
 ## Tests
 

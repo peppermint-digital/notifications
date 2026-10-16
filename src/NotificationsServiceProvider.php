@@ -3,6 +3,9 @@
 namespace Peppermint\Notifications;
 
 use Illuminate\Support\ServiceProvider;
+use Peppermint\Notifications\Delivery\Notifier;
+use Peppermint\Notifications\Feed\NotificationActions;
+use Peppermint\Notifications\Feed\NotificationFeed;
 use Peppermint\Notifications\Types\TypeRegistry;
 
 class NotificationsServiceProvider extends ServiceProvider
@@ -16,6 +19,13 @@ class NotificationsServiceProvider extends ServiceProvider
             rueckfall: (array) config('notifications.unknown_type', []),
             streng: (bool) config('notifications.strict_types', false),
         ));
+
+        // Zustandslos, deshalb geteilt. Wer sie ersetzen will — etwa um das
+        // Spiegeln an AI Brain anders zu loesen —, bindet hier eine eigene
+        // Ableitung.
+        $this->app->singleton(Notifier::class);
+        $this->app->singleton(NotificationFeed::class);
+        $this->app->singleton(NotificationActions::class);
     }
 
     public function boot(): void
