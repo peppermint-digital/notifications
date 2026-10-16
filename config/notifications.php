@@ -193,12 +193,18 @@ return [
     |     'legacy_columns' => [
     |         'type' => 'App\Notifications\AppNotification',
     |         'notifiable_type' => 'user',
-    |         'notifiable_id' => fn (\$m) => \$m->field('user_id'),
+    |         'notifiable_id' => '@user_id',
     |         'data' => '{}',
     |     ],
     |
-    | Ein Wert kann fest sein oder eine Funktion, die die Meldung bekommt.
-    | Gesetzt wird nur, was noch leer ist.
+    | Ein Wert ist entweder fest oder eine Referenz auf ein Paketfeld
+    | (`@feldname`). Gesetzt wird nur, was noch leer ist.
+    |
+    | KEINE Closure hier: `php artisan config:cache` schreibt die
+    | Konfiguration per `var_export` in eine Datei, und eine Closure
+    | ueberlebt das nicht. Der Befehl bricht ab — und in einem Produkt mit
+    | Zero-Downtime-Deploy bedeutet das ein Release, das ausgecheckt und nie
+    | umgehaengt wird.
     |
     */
     'legacy_columns' => [],

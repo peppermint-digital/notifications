@@ -132,7 +132,7 @@ class Notification extends Model
                 continue;
             }
 
-            $this->setAttribute($spalte, $wert instanceof Closure ? $wert($this) : $wert);
+            $this->setAttribute($spalte, $this->altWert($wert));
         }
     }
 
@@ -149,6 +149,27 @@ class Notification extends Model
             static::column('read_at') => 'datetime',
             static::column('data') => 'array',
         ];
+    }
+
+    /**
+     * Einen Wert aus der Alt-Spalten-Konfiguration aufloesen.
+     *
+     * `@feldname` liest das Paketfeld; alles andere gilt wie angegeben. Eine
+     * Closure wird weiterhin aufgerufen — wer sie programmatisch setzt
+     * (`config()->set(...)` im Test) soll das koennen; aus einer
+     * Konfigurationsdatei ueberlebt sie den Zwischenspeicher nicht.
+     */
+    private function altWert(mixed $wert): mixed
+    {
+        if ($wert instanceof Closure) {
+            return $wert($this);
+        }
+
+        if (is_string($wert) && str_starts_with($wert, '@')) {
+            return $this->field(mb_substr($wert, 1));
+        }
+
+        return $wert;
     }
 
     /**

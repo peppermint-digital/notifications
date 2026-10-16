@@ -279,3 +279,38 @@ it('ueberschreibt eine Alt-Spalte nicht, die schon gesetzt ist', function (): vo
 
     expect($m->getAttribute('type'))->toBe('Ausdruecklich gesetzt');
 });
+
+it('loest eine Feld-Referenz in den Alt-Spalten auf', function (): void {
+    // `@user_id` statt einer Closure: Die Konfiguration muss
+    // `php artisan config:cache` ueberleben, und das tut eine Closure nicht.
+    config()->set('notifications.legacy_columns', [
+        'type' => 'App\\Notifications\\AppNotification',
+        'notifiable_type' => 'user',
+        'notifiable_id' => '@user_id',
+        'data' => '{}',
+    ]);
+
+    $m = Notification::create([
+        'user_id' => $this->ich->id,
+        'kind' => 'infra.server',
+        'title' => 'Mit Feld-Referenz',
+    ]);
+
+    expect($m->getAttribute('notifiable_id'))->toBe($this->ich->id)
+        ->and($m->getAttribute('notifiable_type'))->toBe('user');
+});
+
+it('haelt die Alt-Spalten-Konfiguration zwischenspeicherbar', function (): void {
+    // Die Probe aufs Exempel: `var_export` ist, was config:cache tut. Steht
+    // dort eine Closure, bricht der Befehl ab — und ein Release wird
+    // ausgecheckt und nie umgehaengt.
+    config()->set('notifications.legacy_columns', [
+        'type' => 'App\\Notifications\\AppNotification',
+        'notifiable_id' => '@user_id',
+    ]);
+
+    $ausgabe = var_export(config('notifications.legacy_columns'), true);
+
+    expect($ausgabe)->toContain('@user_id')
+        ->and($ausgabe)->not->toContain('Closure');
+});
