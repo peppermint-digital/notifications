@@ -265,6 +265,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Push
+    |--------------------------------------------------------------------------
+    |
+    | Ein Web-Push-Abo haengt am VAPID-PUBLIC-KEY, mit dem der Browser
+    | abonniert hat — nicht an der Domain. Holen alle Produkte denselben
+    | Schluessel, kann nur die Stelle signieren, die den privaten Teil haelt.
+    |
+    | Im `brain`-Betrieb kommt er von `hub_url`; `public_key` ist dann nur
+    | noch der Rueckfall fuer den Fall, dass der Hub nicht antwortet. Im
+    | Einzelbetrieb ist `public_key` die Quelle.
+    |
+    | ACHTUNG beim Umstellen: Bestehende Abos gelten NICHT weiter. Sie sind
+    | mit dem alten Schluessel entstanden, und der Push-Dienst lehnt sie mit
+    | dem neuen ab. Jeder Mensch abonniert einmal neu.
+    |
+    */
+    'push' => [
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+
+        'hub_url' => env('NOTIFICATIONS_PUSH_HUB_URL'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Wer bekommt was, auf welchem Weg
     |--------------------------------------------------------------------------
     |

@@ -12,6 +12,8 @@ use Peppermint\Notifications\Feed\NotificationFeed;
 use Peppermint\Notifications\Mirroring\BrainMirror;
 use Peppermint\Notifications\Mirroring\MirrorReceiver;
 use Peppermint\Notifications\Preferences\PreferenceResolver;
+use Peppermint\Notifications\Push\PushForwarder;
+use Peppermint\Notifications\Push\PushKeys;
 use Peppermint\Notifications\Types\TypeRegistry;
 
 class NotificationsServiceProvider extends ServiceProvider
@@ -39,6 +41,8 @@ class NotificationsServiceProvider extends ServiceProvider
         // und ist deshalb geteilt: Eine Zustellung an zwanzig Menschen soll
         // nicht zwanzig Mal dieselbe Tabelle lesen.
         $this->app->singleton(PreferenceResolver::class);
+        $this->app->singleton(PushKeys::class);
+        $this->app->singleton(PushForwarder::class);
     }
 
     public function boot(): void
