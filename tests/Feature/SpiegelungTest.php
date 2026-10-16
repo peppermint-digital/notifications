@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Peppermint\Notifications\Delivery\Notifier;
 use Peppermint\Notifications\Events\NotificationCreated;
 use Peppermint\Notifications\Feed\NotificationFeed;
@@ -419,5 +420,33 @@ describe('Empfang ueber die Bruecke', function () {
         $verarbeiten($fremd);
 
         expect(Notification::count())->toBe(0);
+    });
+});
+
+describe('Fehlende Spalten', function () {
+    it('legt an, auch wenn die Zieltabelle eine Spalte nicht hat', function (): void {
+        // Die vier Produkte haben nicht dieselben Spalten: Der Manager fuehrt
+        // keine `color` — dort kommt die Farbe aus dem Vokabular. Eine
+        // gespiegelte Meldung bringt sie trotzdem mit.
+        //
+        // Beim ersten Livetest (16.10.2026) scheiterte das INSERT an genau
+        // dieser einen Spalte. Signatur, Route und Horcher liefen; die
+        // Meldung kam trotzdem nirgends an.
+        Schema::table('notifications', function ($t): void {
+            $t->dropColumn('color');
+        });
+
+        $m = app(MirrorReceiver::class)->empfangen([
+            'recipient_email' => 'empfaenger@beispiel.test',
+            'kind' => 'task_assigned',
+            'label' => 'Aufgabe zugewiesen',
+            'title' => 'Angebot nachfassen',
+            'color' => 'blue',
+            'origin' => 'peppermint-manager',
+            'origin_id' => 7,
+        ]);
+
+        expect($m)->not->toBeNull()
+            ->and($m->field('title'))->toBe('Angebot nachfassen');
     });
 });

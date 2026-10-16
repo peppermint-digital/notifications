@@ -4,6 +4,7 @@ namespace Peppermint\Notifications\Mirroring;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Peppermint\Notifications\Models\Notification;
 
 /**
@@ -68,7 +69,7 @@ class MirrorReceiver
             return null;
         }
 
-        return Notification::create([
+        return Notification::create($this->nurVorhandene([
             Notification::column('user_id') => $empfaenger->getKey(),
             Notification::column('type') => $nutzlast->kind,
             Notification::column('title') => $nutzlast->title,
@@ -86,7 +87,41 @@ class MirrorReceiver
                 // Rueckfall.
                 'mirror_label' => $nutzlast->label,
             ],
-        ]);
+        ]));
+    }
+
+    /**
+     * Nur schreiben, was die Tabelle auch hat.
+     *
+     * Die vier Produkte haben nicht dieselben Spalten: Der Peppermint
+     * Manager führt zum Beispiel keine `color` — dort kommt die Farbe aus
+     * dem Vokabular, nicht aus der Zeile. Eine gespiegelte Meldung bringt
+     * sie trotzdem mit.
+     *
+     * Ohne diesen Filter scheitert das INSERT an „Unknown column 'color'",
+     * und die Meldung kommt nirgends an. Genau so ist es beim ersten
+     * Livetest passiert (16.10.2026): Signatur, Route und Horcher liefen,
+     * die Kette stand — und die Zeile fiel an einer einzigen fehlenden
+     * Spalte.
+     *
+     * Was fehlt, geht verloren. Das ist besser als gar keine Meldung, und
+     * sichtbarer als eine Ausnahme im Hintergrund — die Zeile steht da,
+     * nur ohne Farbe.
+     *
+     * @param  array<string, mixed>  $werte
+     * @return array<string, mixed>
+     */
+    private function nurVorhandene(array $werte): array
+    {
+        $tabelle = (new Notification)->getTable();
+
+        $vorhanden = Schema::getColumnListing($tabelle);
+
+        return array_filter(
+            $werte,
+            fn (string $spalte): bool => in_array($spalte, $vorhanden, true),
+            ARRAY_FILTER_USE_KEY,
+        );
     }
 
     /**
