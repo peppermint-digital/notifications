@@ -43,6 +43,10 @@ return new class extends Migration
             // Was an DIESER Meldung abweicht. Leer heisst: nimm die Vorgabe
             // der Art.
             $table->string('icon')->nullable();
+            // Die Farbe kann an der Meldung haengen statt an der Art: Im AI
+            // Brain meldet dieselbe Art „Server nicht erreichbar" (rot) und
+            // „Server wieder da" (gruen).
+            $table->string('color')->nullable();
             $table->string('link')->nullable();
 
             // Der Gegenstand. Nullable, weil es Meldungen ohne gibt

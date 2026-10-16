@@ -243,8 +243,18 @@ class Notification extends Model
         return is_string($eigenes) && $eigenes !== '' ? $eigenes : $this->typeDefinition()->icon;
     }
 
+    /**
+     * Die Farbe: was an der Meldung steht, schlaegt die Vorgabe der Art.
+     *
+     * Im Manager bestimmt die ART die Farbe — „Aufgabe zugewiesen" ist immer
+     * blau. Im AI Brain bestimmt der SCHWEREGRAD sie: Dieselbe Art meldet
+     * „Server nicht erreichbar" (rot) und „Server wieder da" (gruen). Beides
+     * ist richtig, also kann beides gesetzt werden.
+     */
     public function colorName(): string
     {
-        return $this->typeDefinition()->color;
+        $eigene = $this->field('color');
+
+        return is_string($eigene) && $eigene !== '' ? $eigene : $this->typeDefinition()->color;
     }
 }

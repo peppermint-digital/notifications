@@ -148,3 +148,15 @@ it('legt die Indizes an, auf denen Glocke und Sammelmeldung laufen', function ()
     expect($indizes)->toContain('notifications_bell_idx')
         ->and($indizes)->toContain('notifications_rolling_idx');
 });
+
+it('laesst eine Farbe an der Meldung die Vorgabe der Art schlagen', function (): void {
+    // Im Manager bestimmt die ART die Farbe, im AI Brain der SCHWEREGRAD:
+    // Dieselbe Art meldet "Server nicht erreichbar" (rot) und "Server wieder
+    // da" (gruen). Beides ist richtig, also kann beides gesetzt werden.
+    app(TypeRegistry::class)->register(
+        new NotificationType('infra.server', 'Server-Zustand', 'server', 'red')
+    );
+
+    expect(meldung(['type' => 'infra.server'])->colorName())->toBe('red')
+        ->and(meldung(['type' => 'infra.server', 'color' => 'green'])->colorName())->toBe('green');
+});
