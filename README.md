@@ -7,9 +7,10 @@ sich allein.
 Dazu `@peppermint-digital/notifications` aus demselben Repository: die
 Oberfläche, damit die Liste in jedem Produkt gleich aussieht.
 
-> **Stand:** N1 (Gerüst, Adoption, Typ-Register) und N2 (Zustellung, Bündelung,
-> Mengen-Zugriff). Die Oberfläche (N3) und die Spiegelung über AI Brain (N7)
-> folgen. Die Schritte stehen als Aufgaben im AI-Brain-Projekt `notifications`.
+> **Stand:** N1 (Gerüst, Adoption, Typ-Register), N2 (Zustellung, Bündelung,
+> Mengen-Zugriff) und N3 (Oberfläche). Die Spiegelung über AI Brain (N7) und
+> die Einstellungen pro Person (N9) folgen. Die Schritte stehen als Aufgaben im
+> AI-Brain-Projekt `notifications`.
 
 ## Warum es das Paket gibt
 
@@ -214,11 +215,91 @@ als Kennung. Im Manager steht deshalb ein Warnkommentar in `routes/web.php`.
 Hier gibt es gar keine Platzhalter-Route mehr — jede Aktion nimmt ohnehin eine
 Liste —, und ein Test hält das fest.
 
+## Die Oberfläche
+
+```bash
+npm install github:peppermint-digital/notifications
+```
+
+Dazu **eine Zeile** in der `app.css` des Produkts, sonst fehlen die Farben:
+
+```css
+@source '../../node_modules/@peppermint-digital/notifications/dist';
+```
+
+Tailwind scannt `node_modules` nicht von allein. Ohne die Zeile rendert alles,
+nur eben farblos — und das sieht nach einem Designfehler aus, nicht nach einer
+fehlenden Konfiguration.
+
+### Glocke
+
+```tsx
+const feed = useNotifications();          // holt, pollt, handelt
+
+<NotificationBell
+    items={feed.items}
+    unreadCount={feed.unreadCount}
+    onResolve={feed.resolve}
+    onDelete={feed.remove}
+    onMarkAllRead={feed.markAllRead}
+    onOpen={(item) => item.link && router.visit(item.link)}
+    footer={<Link href="/notifications">Alle ansehen</Link>}
+/>
+```
+
+### Liste (Posteingang, eigene Seite)
+
+Dieselbe Komponente, nur ohne Klappe — die Glocke rendert intern genau diese
+Liste. Dass es **eine** ist, ist der Punkt: Im Manager gab es sie zweimal, und
+die Glocke kannte 15 der 39 Arten.
+
+```tsx
+<NotificationList
+    items={feed.items}
+    onResolve={feed.resolve}
+    onDelete={feed.remove}
+    onMarkAllRead={feed.markAllRead}
+    onDeleteAll={feed.removeAll}
+    formatTime={formatRelative}
+/>
+```
+
+### Was das Produkt beisteuert
+
+Alles, was nur dort Sinn ergibt, kommt als Funktion herein statt als Sonderfall
+hineingebaut zu werden:
+
+| Haken | wofür |
+|---|---|
+| `onOpen` | Navigation — Inertia-`router` statt `window.location` |
+| `isDuplicate` | was anderswo schon steht (im Manager: die Aufgaben-Reiter) |
+| `renderActions` | zusätzliche Knöpfe (im Manager: Rückruf bei verpasstem Anruf) |
+| `renderDetails` | Zusatzzeilen (Aufgabentitel, Projektname) |
+| `formatTime` | „vor 2 Stunden" statt einer ISO-Zeichenkette |
+
+Fremde Quellen — im Manager die Wiedervorlagen — mischt das Produkt selbst in
+`items` und setzt `source`; das Paket behandelt sie wie jede andere Zeile.
+
+### Abhängigkeiten
+
+`lucide-react` ist eine **Peer**-Abhängigkeit mit weiter Spanne
+(`^0.400.0 || ^1.0.0`). Gemessen am 16.10.2026: AI Brain liegt auf `^0.475`,
+Manager, CRM und Verwaltung auf `^1.x`. Eine engere Angabe machte die
+Installation in mindestens einem der vier unmöglich — der Fehler, der beim
+Tiptap-Paket schon einmal jede Installation gekostet hat.
+
+Radix wird **nicht** gezogen. Die Klappe der Glocke ist von Hand gebaut: eine
+weitere Peer-Abhängigkeit, die in vier Produkten in vier Fassungen vorliegen
+kann, lohnt für ein Aufklappen nicht.
+
 ## Tests
 
 ```bash
 composer install
 bin/test-beide-treiber.sh
+
+npm install
+npm test
 ```
 
 SQLite allein genügt nicht: Es nimmt Dinge an, an denen MySQL abbricht, und drei

@@ -24,6 +24,7 @@
         "prepare": "npm run build"
     },
     "peerDependencies": {
+        "lucide-react": "^0.400.0 || ^1.0.0",
         "react": "^18 || ^19",
         "react-dom": "^18 || ^19"
     },
@@ -35,6 +36,15 @@
         "react-dom": "^19.3.0",
         "tsup": "^8.0.0",
         "typescript": "^5.4.0",
-        "vitest": "^5.0.0"
+        "vitest": "^5.0.0",
+        "lucide-react": "^0.550.0",
+        "@testing-library/react": "^16.3.0"
+    },
+    "dependencies": {
+        "clsx": "^2.1.1",
+        "tailwind-merge": "^3.2.0"
+    },
+    "allowScripts": {
+        "esbuild@0.27.7": true
     }
 }
