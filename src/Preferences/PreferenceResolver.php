@@ -4,6 +4,8 @@ namespace Peppermint\Notifications\Preferences;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Peppermint\Notifications\Types\TypeRegistry;
 
 /**
@@ -34,6 +36,14 @@ class PreferenceResolver
      * @var array<string, Collection<string, NotificationPreference>>
      */
     private array $gelesen = [];
+
+    /**
+     * Gibt es die Tabelle? Einmal je Aufruf beantwortet.
+     *
+     * `null` heisst „noch nicht nachgesehen" — und ist deshalb nicht
+     * dasselbe wie `false`.
+     */
+    private ?bool $tabelleGeprueft = null;
 
     public function __construct(private readonly TypeRegistry $arten) {}
 
@@ -198,6 +208,7 @@ class PreferenceResolver
     {
         if ($user === null) {
             $this->gelesen = [];
+            $this->tabelleGeprueft = null;
 
             return;
         }
@@ -228,10 +239,59 @@ class PreferenceResolver
     {
         $schluessel = $this->schluessel($user);
 
-        return $this->gelesen[$schluessel] ??= NotificationPreference::query()
+        if (isset($this->gelesen[$schluessel])) {
+            return $this->gelesen[$schluessel];
+        }
+
+        if (! $this->tabelleDa()) {
+            return $this->gelesen[$schluessel] = collect();
+        }
+
+        return $this->gelesen[$schluessel] = NotificationPreference::query()
             ->forUser($user)
             ->get()
             ->keyBy('type');
+    }
+
+    /**
+     * Steht die Tabelle schon?
+     *
+     * ## Warum das kein Misstrauen gegen die eigene Migration ist
+     *
+     * Zwischen „neuer Code ist scharf" und „Migration ist gelaufen" liegt
+     * immer ein Fenster. Bei einem Deploy mit Zero-Downtime sind das
+     * Sekunden; auf einem Host, auf dem jemand den Dienst neu startet, bevor
+     * er migriert, kann es laenger sein.
+     *
+     * Ohne diese Pruefung wuerde in diesem Fenster JEDE Zustellung scheitern
+     * — nicht nur die Einstellungsmaske. Eine fehlende Einstellungstabelle
+     * darf nicht dazu fuehren, dass niemand mehr benachrichtigt wird.
+     *
+     * Die Antwort wird gemerkt: `hasTable` fragt den Katalog, und das bei
+     * jeder einzelnen Zustellung zu tun waere teurer als das, was es
+     * absichert.
+     */
+    private function tabelleDa(): bool
+    {
+        if ($this->tabelleGeprueft !== null) {
+            return $this->tabelleGeprueft;
+        }
+
+        try {
+            $da = Schema::hasTable((new NotificationPreference)->getTable());
+        } catch (\Throwable) {
+            // Keine Datenbank erreichbar: Dann ist „keine Einstellungen" die
+            // richtige Annahme, nicht ein zweiter Fehler obendrauf.
+            $da = false;
+        }
+
+        if (! $da) {
+            Log::warning('Die Tabelle fuer Benachrichtigungs-Einstellungen fehlt — es gelten die Vorgaben.', [
+                'tabelle' => (new NotificationPreference)->getTable(),
+            ]);
+        }
+
+        return $this->tabelleGeprueft = $da;
     }
 
     private function schluessel(Model|int|string $user): string

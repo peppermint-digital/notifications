@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Peppermint\Notifications\Delivery\Notifier;
 use Peppermint\Notifications\Models\Notification;
 use Peppermint\Notifications\Preferences\Channel;
@@ -191,4 +192,47 @@ it('vergisst den Zwischenspeicher nach einer Aenderung', function (): void {
     $this->loeser->set($this->ich, 'task.assigned', [Channel::Push->value => Level::Off]);
 
     expect($this->loeser->level($this->ich, 'task.assigned', Channel::Push))->toBe(Level::Off);
+});
+
+/* --------------------------------- das Fenster vor der Migration */
+
+it('stellt weiter zu, wenn die Einstellungstabelle noch fehlt', function (): void {
+    // Zwischen „neuer Code ist scharf" und „Migration ist gelaufen" liegt
+    // immer ein Fenster. Ohne diese Nachsicht scheiterte darin JEDE
+    // Zustellung — nicht nur die Maske.
+    Schema::drop((new NotificationPreference)->getTable());
+    app(PreferenceResolver::class)->vergessen();
+
+    $meldung = app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: 'Probe');
+
+    expect($meldung)->not->toBeNull()
+        ->and(Notification::query()->count())->toBe(1);
+});
+
+it('liefert ohne Tabelle die Vorgaben statt einer Ausnahme', function (): void {
+    Schema::drop((new NotificationPreference)->getTable());
+    app(PreferenceResolver::class)->vergessen();
+
+    expect(app(PreferenceResolver::class)->level($this->ich, 'task.assigned', Channel::Email))
+        ->toBe(Level::Digest);
+});
+
+it('sieht nur einmal nach, ob es die Tabelle gibt', function (): void {
+    // `hasTable` fragt den Katalog. Das bei jeder Zustellung zu tun waere
+    // teurer als das, was es absichert.
+    $loeser = app(PreferenceResolver::class);
+    $loeser->level($this->ich, 'task.assigned', Channel::Push);
+
+    $andere = User::create(['name' => 'Andere']);
+
+    $katalog = 0;
+    DB::listen(function ($abfrage) use (&$katalog): void {
+        if (str_contains(strtolower($abfrage->sql), 'sqlite_master') || str_contains(strtolower($abfrage->sql), 'information_schema')) {
+            $katalog++;
+        }
+    });
+
+    $loeser->level($andere, 'task.assigned', Channel::Push);
+
+    expect($katalog)->toBe(0);
 });
