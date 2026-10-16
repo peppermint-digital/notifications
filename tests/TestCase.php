@@ -53,6 +53,9 @@ abstract class TestCase extends Base
         Schema::create('users', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
+            // Die E-Mail ist der einzige produktuebergreifende Schluessel —
+            // ohne sie laesst sich eine gespiegelte Meldung nicht zuordnen.
+            $table->string('email')->nullable()->unique();
             $table->timestamps();
         });
 

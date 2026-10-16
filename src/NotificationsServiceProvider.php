@@ -2,10 +2,14 @@
 
 namespace Peppermint\Notifications;
 
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Peppermint\Notifications\Delivery\Notifier;
+use Peppermint\Notifications\Events\NotificationCreated;
 use Peppermint\Notifications\Feed\NotificationActions;
 use Peppermint\Notifications\Feed\NotificationFeed;
+use Peppermint\Notifications\Mirroring\BrainMirror;
+use Peppermint\Notifications\Mirroring\MirrorReceiver;
 use Peppermint\Notifications\Types\TypeRegistry;
 
 class NotificationsServiceProvider extends ServiceProvider
@@ -24,6 +28,8 @@ class NotificationsServiceProvider extends ServiceProvider
         // Spiegeln an AI Brain anders zu loesen —, bindet hier eine eigene
         // Ableitung.
         $this->app->singleton(Notifier::class);
+        $this->app->singleton(BrainMirror::class);
+        $this->app->singleton(MirrorReceiver::class);
         $this->app->singleton(NotificationFeed::class);
         $this->app->singleton(NotificationActions::class);
     }
@@ -50,5 +56,30 @@ class NotificationsServiceProvider extends ServiceProvider
         if (config('notifications.run_migrations', false)) {
             $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         }
+
+        $this->spiegelungVerdrahten();
+    }
+
+    /**
+     * Die Spiegelung ueber AI Brain — nur im `brain`-Betrieb.
+     *
+     * Ein Produkt auf `local` haengt den Horcher gar nicht erst ein. Das ist
+     * nicht nur sparsam, sondern die Zusicherung, die im README steht: Wer
+     * das Paket allein benutzt, hat keine Verbindung nach draussen, auch
+     * keine, die nur gerade nichts tut.
+     */
+    private function spiegelungVerdrahten(): void
+    {
+        if (config('notifications.hub', 'local') !== 'brain') {
+            return;
+        }
+
+        // Die SENDENDE Seite: jede neue Meldung an den Hub melden.
+        //
+        // Bewusst nur `NotificationCreated` und NICHT `NotificationRolled`:
+        // Eine fortgeschriebene Sammelmeldung ist dieselbe Sache noch einmal,
+        // und sie drueben als zweite Zeile anzulegen waere genau die Flut,
+        // gegen die das Rollen gebaut ist.
+        Event::listen(NotificationCreated::class, [BrainMirror::class, 'handle']);
     }
 }

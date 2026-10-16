@@ -177,6 +177,49 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Spiegelung ueber AI Brain
+    |--------------------------------------------------------------------------
+    |
+    | Gilt nur bei `hub => 'brain'`. Dann meldet dieses Produkt jede neue
+    | Meldung zusaetzlich an den Hub, und der verteilt sie an die Produkte,
+    | die diese Art abonniert haben.
+    |
+    */
+    'mirror' => [
+        /*
+        | WELCHE Arten nach draussen gehen. Die Vorgabe ist eine LEERE Liste,
+        | also keine.
+        |
+        | Das ist Absicht und nicht Vorsicht: „Neue E-Mail in Konto 3" hat im
+        | CRM nichts verloren, und eine Infrastruktur-Meldung aus dem Brain
+        | erst recht nicht — davon entstehen dort 243 am Tag. Gespiegelt wird,
+        | was jemand ausdruecklich benennt.
+        |
+        |     'types' => ['task.assigned', 'mention'],
+        |
+        | `['*']` spiegelt alles. Erlaubt, selten richtig.
+        */
+        'types' => [],
+
+        /*
+        | Der Name dieses Produkts in der gespiegelten Meldung. Er steht
+        | drueben als Herkunft und sollte der Produkt-Slug sein, nicht der
+        | Anzeigename.
+        */
+        'origin' => env('NOTIFICATIONS_ORIGIN', env('AI_BRAIN_PRODUCT_SLUG')),
+
+        /*
+        | Die Spalte, in der die E-Mail-Adresse steht.
+        |
+        | Sie ist der einzige produktuebergreifende Schluessel: Nutzer-Nummern
+        | gelten je Produkt, und dieselbe `5` ist in vier Datenbanken vier
+        | Menschen.
+        */
+        'email_column' => 'email',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Migrationen
     |--------------------------------------------------------------------------
     |
