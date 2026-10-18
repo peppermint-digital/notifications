@@ -223,3 +223,101 @@ it('schickt im Probelauf nichts und merkt sich auch nichts', function (): void {
     // verschluckt.
     expect(app(EmailDelivery::class)->sammeln($this->ich))->toBe(1);
 });
+
+/* ------------------------------------------- der Standard fuer HTML-Mails */
+
+it('schickt einen Plain-Text-Teil mit', function (): void {
+    // Pflicht laut Wiki „E-Mail-Template-Standard" und nicht aus Nostalgie:
+    // Eine Mail ohne Text-Alternative bekommt bei den meisten Filtern
+    // Spam-Punkte — bei einer Mail, die regelmaessig an dieselben Leute
+    // geht, entscheidet das ueber Posteingang oder Werbeordner.
+    $this->loeser->set($this->ich, 'task.assigned', [Channel::Email->value => Level::Instant]);
+    $this->notifier->send(to: $this->ich, type: 'task.assigned', title: 'Probe', message: 'Der Text.');
+
+    Mail::assertSent(NotificationMail::class, function (NotificationMail $mail): bool {
+        $inhalt = $mail->content();
+
+        return $inhalt->text === 'notifications::mail.notifications_text'
+            && $inhalt->view === 'notifications::mail.notifications';
+    });
+});
+
+it('baut die Vorschauzeile aus der Meldung, nicht aus der Anrede', function (): void {
+    // Ohne Vorschauzeile zeigt der Client den Anfang des sichtbaren Textes —
+    // also „Hallo …", und das steht in jeder Mail.
+    $mail = new NotificationMail('Bastian', [
+        ['title' => 'Server nicht erreichbar', 'message' => 'purple-stream antwortet nicht.'],
+    ], 'AI Brain');
+
+    expect($mail->content()->with['vorschau'])->toBe('purple-stream antwortet nicht.');
+});
+
+it('nennt in der Vorschau, wenn mehr dahintersteckt', function (): void {
+    $mail = new NotificationMail('Bastian', [
+        ['title' => 'Eins', 'message' => 'Erste Meldung.'],
+        ['title' => 'Zwei'],
+        ['title' => 'Drei'],
+    ], 'AI Brain');
+
+    expect($mail->content()->with['vorschau'])->toBe('Erste Meldung. (und 2 weitere)');
+});
+
+it('kommt ohne Stilblock aus', function (): void {
+    // web.de und GMX strippen den kompletten `<style>`-Block. Alles, was als
+    // Klasse definiert waere, ist dort wirkungslos.
+    $html = view('notifications::mail.notifications', [
+        'name' => 'Bastian',
+        'zeilen' => [['title' => 'Probe', 'message' => null, 'link' => null]],
+        'system' => 'AI Brain',
+        'posteingang' => 'https://brain.test/notifications/inbox',
+        'einstellungen' => 'https://brain.test/settings/notifications',
+        'betreff' => 'Probe',
+        'vorschau' => 'Probe',
+    ])->render();
+
+    expect($html)->not->toContain('<style');
+});
+
+it('legt jede Farbflaeche zusaetzlich als bgcolor-Attribut an', function (): void {
+    // Dasselbe Argument: Ein inline `background-color` ueberlebt das
+    // Strippen, ein `bgcolor`-Attribut aber auch die Word-Engine von
+    // Outlook. Beides zusammen ist der sichere Weg.
+    $html = view('notifications::mail.notifications', [
+        'name' => 'Bastian',
+        'zeilen' => [['title' => 'Probe', 'message' => null, 'link' => null]],
+        'system' => 'AI Brain',
+        'posteingang' => 'https://brain.test/notifications/inbox',
+        'einstellungen' => 'https://brain.test/settings/notifications',
+        'betreff' => 'Probe',
+        'vorschau' => 'Probe',
+    ])->render();
+
+    expect(substr_count($html, 'bgcolor='))->toBeGreaterThanOrEqual(3)
+        // Der Knopf traegt seine Flaeche auf der ZELLE, nicht auf dem Link:
+        // Outlook ignoriert Padding auf einem `<a>`.
+        ->and($html)->toContain('bgcolor="#1d4ed8"');
+});
+
+it('verzichtet auf das, was Outlook nicht kann', function (): void {
+    // MIT Knopf und MIT Fusszeile gerendert. Die erste Fassung dieses Tests
+    // setzte `posteingang` auf `null` — damit fiel der ganze Knopf-Block aus
+    // der Ausgabe, und ausgerechnet das Stueck, das bei Outlook am ehesten
+    // bricht, war ungeprueft. Eine Mutationsprobe genau dort blieb gruen.
+    $html = view('notifications::mail.notifications', [
+        'name' => 'Bastian',
+        'zeilen' => [['title' => 'Probe', 'message' => 'Text.', 'link' => 'https://brain.test/x']],
+        'system' => 'AI Brain',
+        'posteingang' => 'https://brain.test/notifications/inbox',
+        'einstellungen' => 'https://brain.test/settings/notifications',
+        'betreff' => 'Probe',
+        'vorschau' => 'Probe',
+    ])->render();
+
+    expect($html)->not->toContain('border-radius')
+        ->not->toContain('box-shadow')
+        ->not->toContain('linear-gradient')
+        ->not->toContain('display:flex')
+        // Ein OS-abhaengiger Schriftstapel sieht auf Mac anders aus als auf
+        // Windows.
+        ->not->toContain('-apple-system');
+});
