@@ -13,6 +13,7 @@ use Peppermint\Notifications\Mirroring\BrainMirror;
 use Peppermint\Notifications\Mirroring\MirrorReceiver;
 use Peppermint\Notifications\Preferences\PreferenceResolver;
 use Peppermint\Notifications\Push\PushForwarder;
+use Peppermint\Notifications\Bridge\NativeBridge;
 use Peppermint\Notifications\Console\SammelMailCommand;
 use Peppermint\Notifications\Mail\EmailDelivery;
 use Peppermint\Notifications\Push\PushKeys;
@@ -46,6 +47,7 @@ class NotificationsServiceProvider extends ServiceProvider
         $this->app->singleton(PushKeys::class);
         $this->app->singleton(PushForwarder::class);
         $this->app->singleton(EmailDelivery::class);
+        $this->app->singleton(NativeBridge::class);
     }
 
     public function boot(): void
