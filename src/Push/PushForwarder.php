@@ -4,6 +4,7 @@ namespace Peppermint\Notifications\Push;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use Peppermint\Notifications\Support\Bruecke;
 
 /**
  * Ein Abo an den Hub melden — oder zuruecknehmen.
@@ -67,9 +68,9 @@ class PushForwarder
             return false;
         }
 
-        $bruecke = 'Peppermint\\AiBrainBridge\\Facades\\AiBrain';
+        $bruecke = Bruecke::FACADE;
 
-        if (! class_exists($bruecke)) {
+        if (! Bruecke::verfuegbar()) {
             Log::warning('Push-Abo nicht an den Hub gemeldet: keine Bruecke installiert.', ['art' => $art]);
 
             return false;

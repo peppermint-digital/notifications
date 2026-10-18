@@ -8,6 +8,7 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
 use Peppermint\Notifications\Feed\NotificationFeed;
 use Peppermint\Notifications\Feed\SourceLabels;
+use Peppermint\Notifications\Support\Bruecke;
 
 /**
  * Die eigenen Meldungen herausgeben — damit andere sie LESEN statt kopieren.
@@ -74,10 +75,8 @@ class ListNotificationsTool extends Tool
      */
     private function handelnde(): mixed
     {
-        $bruecke = 'Peppermint\\AiBrainBridge\\Facades\\AiBrain';
-
-        if (class_exists($bruecke)) {
-            $adresse = $bruecke::actingUserEmail();
+        if (Bruecke::verfuegbar()) {
+            $adresse = (Bruecke::FACADE)::actingUserEmail();
 
             if (is_string($adresse) && trim($adresse) !== '') {
                 $modell = (string) config('notifications.user_model');

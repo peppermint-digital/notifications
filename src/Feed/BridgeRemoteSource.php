@@ -2,6 +2,8 @@
 
 namespace Peppermint\Notifications\Feed;
 
+use Peppermint\Notifications\Support\Bruecke;
+
 /**
  * Der Weg eines PRODUKTS: ueber die Bruecke zum Hub und weiter.
  *
@@ -10,7 +12,7 @@ namespace Peppermint\Notifications\Feed;
  */
 class BridgeRemoteSource implements RemoteSource
 {
-    private const BRUECKE = 'Peppermint\\AiBrainBridge\\Facades\\AiBrain';
+    private const BRUECKE = Bruecke::FACADE;
 
     /**
      * Der Hub selbst — er steht NICHT in der Anbieterliste.
@@ -26,7 +28,7 @@ class BridgeRemoteSource implements RemoteSource
 
     public function anbieter(): array
     {
-        if (! class_exists(self::BRUECKE)) {
+        if (! Bruecke::verfuegbar()) {
             // Ohne Bruecke gibt es keine anderen Systeme. Der Einzelbetrieb
             // ist kein Fehlerfall, sondern der zweite zugesicherte Zustand.
             return [];
