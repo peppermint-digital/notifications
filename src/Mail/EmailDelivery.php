@@ -7,6 +7,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Peppermint\Notifications\Feed\SourceLabels;
 use Peppermint\Notifications\Models\Notification;
 use Peppermint\Notifications\Preferences\Channel;
@@ -41,6 +42,12 @@ use Peppermint\Notifications\Preferences\PreferenceResolver;
  */
 class EmailDelivery
 {
+    /**
+     * Gibt es die Tabelle? Einmal je Aufruf beantwortet. `null` heisst
+     * „noch nicht nachgesehen" und ist deshalb nicht dasselbe wie `false`.
+     */
+    private ?bool $tabelleGeprueft = null;
+
     public function __construct(private readonly PreferenceResolver $einstellungen) {}
 
     /**
@@ -77,6 +84,14 @@ class EmailDelivery
         $adresse = $this->adresse($empfaenger);
 
         if ($adresse === null) {
+            return 0;
+        }
+
+        if (! $this->tabelleDa()) {
+            // Zwischen „neuer Code ist scharf" und „Migration ist gelaufen"
+            // liegt immer ein Fenster. Der Zeitplan laeuft darin weiter und
+            // wuerde jede Nacht mit einer Ausnahme abbrechen — sichtbar nur
+            // im Protokoll, das in so einem Fenster niemand liest.
             return 0;
         }
 
@@ -219,5 +234,34 @@ class EmailDelivery
     private function tabelle(): string
     {
         return (string) config('notifications.tables.digests', 'notification_digests');
+    }
+
+    /**
+     * Steht die Tabelle fuer die Versand-Zeitpunkte schon?
+     *
+     * Dieselbe Nachsicht wie beim {@see PreferenceResolver}, aus demselben
+     * Grund — und einmal je Aufruf beantwortet: `hasTable` fragt den
+     * Katalog, und ein Durchlauf ueber hundert Menschen soll das nicht
+     * hundertmal tun.
+     */
+    private function tabelleDa(): bool
+    {
+        if ($this->tabelleGeprueft !== null) {
+            return $this->tabelleGeprueft;
+        }
+
+        try {
+            $da = Schema::hasTable($this->tabelle());
+        } catch (\Throwable) {
+            $da = false;
+        }
+
+        if (! $da) {
+            Log::warning('Die Tabelle fuer die Sammel-Mails fehlt — es geht nichts hinaus.', [
+                'tabelle' => $this->tabelle(),
+            ]);
+        }
+
+        return $this->tabelleGeprueft = $da;
     }
 }

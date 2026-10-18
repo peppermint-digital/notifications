@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Peppermint\Notifications\Delivery\Notifier;
 use Peppermint\Notifications\Mail\EmailDelivery;
 use Peppermint\Notifications\Mail\NotificationMail;
@@ -179,4 +180,20 @@ it('nennt bei mehreren die Anzahl', function (): void {
     $mail = new NotificationMail('Bastian', [['title' => 'A'], ['title' => 'B']], 'AI Brain');
 
     expect($mail->envelope()->subject)->toBe('2 neue Benachrichtigungen');
+});
+
+/* --------------------------------- das Fenster vor der Migration */
+
+it('bricht nicht ab, wenn die Tabelle fuer die Versandzeitpunkte fehlt', function (): void {
+    // Der Zeitplan laeuft im Fenster zwischen Deploy und Migration weiter.
+    // Ohne Nachsicht braeche er jede Nacht mit einer Ausnahme ab — sichtbar
+    // nur im Protokoll, das in so einem Fenster niemand liest.
+    Schema::drop('notification_digests');
+
+    $this->loeser->set($this->ich, 'task.assigned', [Channel::Email->value => Level::Digest]);
+    $this->notifier->send(to: $this->ich, type: 'task.assigned', title: 'Probe');
+
+    expect(app(EmailDelivery::class)->sammeln($this->ich))->toBe(0);
+
+    Mail::assertNothingSent();
 });
