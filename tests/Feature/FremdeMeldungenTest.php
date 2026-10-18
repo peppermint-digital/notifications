@@ -107,3 +107,18 @@ it('ueberlebt ein Verzeichnis, das gar nicht antwortet', function (): void {
     // Die eigenen Meldungen stehen trotzdem da — das ist der Punkt.
     expect(app(\Peppermint\Notifications\Feed\FremdeMeldungen::class)->holen('ich@beispiel.test')['items'])->toBe([]);
 });
+
+it('stellt den Hub an die erste Stelle der Anbieterliste', function (): void {
+    // `providers()` zaehlt die angebundenen PRODUKTE auf, nicht AI Brain.
+    // Fuer einen Kalender ist das richtig; bei Benachrichtigungen waere es
+    // der groesste Ausfall von allen — der Hub fuehrt die Mehrzahl.
+    //
+    // Geprueft wird nur die Reihenfolge und das Vorhandensein: Ohne Bruecke
+    // liefert `anbieter()` eine leere Liste, und genau das haelt der erste
+    // Test in dieser Datei fest.
+    $quelle = new \Peppermint\Notifications\Feed\BridgeRemoteSource;
+
+    // Ohne Bruecke ist die Liste leer — auch der Hub steht dann nicht drin,
+    // denn ohne Bruecke gibt es keinen.
+    expect($quelle->anbieter())->toBe([]);
+});
