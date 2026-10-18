@@ -159,3 +159,53 @@ describe('Herkunft an der Zeile', () => {
         expect(screen.queryByText('CRM')).toBeNull();
     });
 });
+
+describe('Fremde Zeilen', () => {
+    it('bietet bei einer Zeile aus einem anderen System kein „gelesen" an', () => {
+        // Sie liegt drueben. Ein Haken hier koennte sie dort nicht erreichen
+        // — und genau das war der Fehler der kopierten Fassung: Man markierte
+        // eine Kopie als gelesen, das Original blieb ungelesen.
+        zeige([meldung({ source: 'peppermint-manager' })], {
+            sourceLabels: { 'peppermint-manager': 'Manager' },
+        });
+
+        expect(screen.queryByTitle('Als gelesen markieren')).toBeNull();
+        expect(screen.queryByTitle('Löschen')).toBeNull();
+    });
+
+    it('bietet es bei einer eigenen Zeile weiterhin an', () => {
+        zeige([meldung()]);
+
+        expect(screen.getByTitle('Als gelesen markieren')).toBeDefined();
+        expect(screen.getByTitle('Löschen')).toBeDefined();
+    });
+
+    it('laesst den Verweis stehen, er fuehrt in das andere System', () => {
+        zeige([meldung({ source: 'peppermint-manager', link: 'https://pm.test/tasks/5' })], {
+            sourceLabels: { 'peppermint-manager': 'Manager' },
+        });
+
+        expect(screen.getByTitle('Öffnen')).toBeDefined();
+    });
+});
+
+describe('Stumme Systeme', () => {
+    it('sagt es, wenn ein System nicht geantwortet hat', () => {
+        // Eine still verkuerzte Liste sieht aus wie „da ist nichts".
+        zeige([meldung()], { unreachable: ['Verwaltung'] });
+
+        expect(screen.getByText(/Verwaltung antwortet gerade nicht/)).toBeDefined();
+    });
+
+    it('nennt mehrere zusammen', () => {
+        zeige([meldung()], { unreachable: ['CRM', 'Verwaltung'] });
+
+        expect(screen.getByText(/CRM, Verwaltung antworten gerade nicht/)).toBeDefined();
+    });
+
+    it('schweigt, wenn alle geantwortet haben', () => {
+        zeige([meldung()]);
+
+        expect(screen.queryByText(/antwortet gerade nicht/)).toBeNull();
+    });
+});

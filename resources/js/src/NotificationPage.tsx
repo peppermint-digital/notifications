@@ -62,6 +62,15 @@ export interface NotificationPageProps {
     renderActions?: (item: NotificationItem) => ReactNode;
     renderDetails?: (item: NotificationItem) => ReactNode;
 
+    /**
+     * Systeme, die gerade nicht geantwortet haben.
+     *
+     * Die Seite sagt es ausdrücklich. Eine still verkürzte Liste sieht aus
+     * wie „da ist nichts" — und das ist die gefährlichere Aussage, weil
+     * niemand nachfragt.
+     */
+    unreachable?: string[];
+
     /** Zusätzliches zwischen Kopf und Filterzeile, etwa ein Hinweisbanner. */
     children?: ReactNode;
 
@@ -83,6 +92,7 @@ export function NotificationPage({
     isDuplicate,
     renderActions,
     renderDetails,
+    unreachable = [],
     children,
     className,
 }: NotificationPageProps) {
@@ -164,6 +174,14 @@ export function NotificationPage({
                 </Button>
             </div>
 
+            {unreachable.length > 0 && (
+                <p className="rounded-md border border-amber-600/40 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                    {unreachable.length === 1
+                        ? `${unreachable[0]} antwortet gerade nicht — von dort fehlt hier etwas.`
+                        : `${unreachable.join(', ')} antworten gerade nicht — von dort fehlt hier etwas.`}
+                </p>
+            )}
+
             {children}
 
             <div className="flex flex-wrap items-center gap-2">
@@ -210,6 +228,9 @@ export function NotificationPage({
                 renderActions={renderActions}
                 renderDetails={renderDetails}
                 sourceLabel={(item) => (item.source ? bezeichnung(item.source) : null)}
+                // Eine Zeile aus einem anderen System liegt dort, nicht hier.
+                // Ein Haken hier könnte sie drüben nicht erreichen.
+                isRemote={(item) => Boolean(item.source)}
                 onResolve={(item) => markRead(item.ids)}
                 onDelete={(ids) => remove(ids)}
                 onMarkAllRead={() => markAllRead()}

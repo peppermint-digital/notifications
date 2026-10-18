@@ -71,6 +71,19 @@ export interface NotificationListProps {
      */
     sourceLabel?: (item: NotificationItem) => string | null;
 
+    /**
+     * Gehoert diese Zeile einem ANDEREN System?
+     *
+     * Dann fehlen „gelesen" und „loeschen". Nicht aus Vorsicht: Die Zeile
+     * liegt drueben, und ein Haken hier kann sie dort nicht erreichen. Ein
+     * Knopf, der nichts bewirkt, ist schlimmer als keiner — und genau das
+     * war der Fehler der kopierten Fassung, wo man eine Kopie als gelesen
+     * markierte und das Original ungelesen blieb.
+     *
+     * Der Verweis bleibt: Er fuehrt in das System, dem die Zeile gehoert.
+     */
+    isRemote?: (item: NotificationItem) => boolean;
+
     /** Einen Zeitpunkt als Text. Ohne Angabe die rohe ISO-Zeichenkette. */
     formatTime?: (iso: string) => string;
 
@@ -90,6 +103,7 @@ export function NotificationList({
     renderActions,
     renderDetails,
     sourceLabel,
+    isRemote,
     formatTime = (iso) => iso,
     busy = false,
     emptyLabel = 'Keine Benachrichtigungen',
@@ -194,6 +208,7 @@ export function NotificationList({
                                     renderActions={renderActions}
                                     renderDetails={renderDetails}
                                     sourceLabel={sourceLabel}
+                                    isRemote={isRemote}
                                     formatTime={formatTime}
                                 />
                             ))}
@@ -216,6 +231,7 @@ export function NotificationList({
                                     renderActions={renderActions}
                                     renderDetails={renderDetails}
                                     sourceLabel={sourceLabel}
+                                    isRemote={isRemote}
                                     formatTime={formatTime}
                                 />
                             ))}
@@ -238,6 +254,7 @@ interface ZeileProps {
     renderActions?: (item: NotificationItem) => ReactNode;
     renderDetails?: (item: NotificationItem) => ReactNode;
     sourceLabel?: (item: NotificationItem) => string | null;
+    isRemote?: (item: NotificationItem) => boolean;
     formatTime: (iso: string) => string;
 }
 
@@ -252,10 +269,12 @@ function Zeile({
     renderActions,
     renderDetails,
     sourceLabel,
+    isRemote,
     formatTime,
 }: ZeileProps) {
     const Symbol = notificationIcon(item.icon);
     const herkunft = sourceLabel?.(item) ?? null;
+    const fremd = isRemote?.(item) ?? false;
 
     return (
         <div
@@ -306,7 +325,7 @@ function Zeile({
                 <div className="flex shrink-0 items-center gap-1">
                     {renderActions?.(item)}
 
-                    {!item.isRead && (
+                    {!item.isRead && !fremd && (
                         <Button
                             icon
                             className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
@@ -321,6 +340,7 @@ function Zeile({
                         </Button>
                     )}
 
+                    {!fremd && (
                     <Button
                         icon
                         variant="destructive"
@@ -334,6 +354,7 @@ function Zeile({
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>
+                    )}
 
                     {item.link && (
                         <Button

@@ -8,6 +8,8 @@ use Illuminate\Support\ServiceProvider;
 use Peppermint\Notifications\Delivery\Notifier;
 use Peppermint\Notifications\Events\NotificationCreated;
 use Peppermint\Notifications\Feed\NotificationActions;
+use Peppermint\Notifications\Feed\FremdeMeldungen;
+use Peppermint\Notifications\Feed\GesamtFeed;
 use Peppermint\Notifications\Feed\NotificationFeed;
 use Peppermint\Notifications\Mirroring\BrainMirror;
 use Peppermint\Notifications\Mirroring\MirrorReceiver;
@@ -38,6 +40,8 @@ class NotificationsServiceProvider extends ServiceProvider
         $this->app->singleton(BrainMirror::class);
         $this->app->singleton(MirrorReceiver::class);
         $this->app->singleton(NotificationFeed::class);
+        $this->app->singleton(FremdeMeldungen::class);
+        $this->app->singleton(GesamtFeed::class);
         $this->app->singleton(NotificationActions::class);
 
         // Der Zwischenspeicher im Resolver lebt fuer die Dauer eines Aufrufs
