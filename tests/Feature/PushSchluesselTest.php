@@ -94,3 +94,37 @@ it('gibt den Schluessel in beiden Schreibweisen heraus', function (): void {
         ->assertOk()
         ->assertJson(['public_key' => 'EIGENER-SCHLUESSEL', 'publicKey' => 'EIGENER-SCHLUESSEL']);
 });
+
+/* ------------------------------------------------- der Service Worker */
+
+it('liefert den Service Worker als JavaScript aus', function (): void {
+    Route::middleware('web')->group(__DIR__.'/../../routes/push-worker.php');
+
+    $antwort = $this->get('/push-sw.js');
+
+    $antwort->assertOk();
+    expect($antwort->headers->get('Content-Type'))->toContain('javascript');
+});
+
+it('liefert ihn OHNE Anmeldung aus', function (): void {
+    // Der Browser holt ihn beim Registrieren ohne Sitzungskontext. Hinter
+    // einer Anmeldung bekaeme er die Anmeldemaske und scheiterte mit „the
+    // script has an unsupported MIME type".
+    Route::middleware('web')->group(__DIR__.'/../../routes/push-worker.php');
+
+    $this->get('/push-sw.js')->assertOk();
+});
+
+it('erlaubt dem Worker die ganze Seite', function (): void {
+    // Ohne diesen Kopf begrenzt der Browser ihn auf das Verzeichnis, aus
+    // dem er kommt — und er bekaeme Push-Ereignisse fuer keine Seite.
+    Route::middleware('web')->group(__DIR__.'/../../routes/push-worker.php');
+
+    expect($this->get('/push-sw.js')->headers->get('Service-Worker-Allowed'))->toBe('/');
+});
+
+it('liegt an der Wurzel und nicht in einem Unterverzeichnis', function (): void {
+    Route::middleware('web')->group(__DIR__.'/../../routes/push-worker.php');
+
+    expect(route('push.worker', absolute: false))->toBe('/push-sw.js');
+});
