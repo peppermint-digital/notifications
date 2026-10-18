@@ -8,9 +8,11 @@ use Illuminate\Support\ServiceProvider;
 use Peppermint\Notifications\Delivery\Notifier;
 use Peppermint\Notifications\Events\NotificationCreated;
 use Peppermint\Notifications\Feed\NotificationActions;
+use Peppermint\Notifications\Feed\BridgeRemoteSource;
 use Peppermint\Notifications\Feed\FremdeMeldungen;
 use Peppermint\Notifications\Feed\GesamtFeed;
 use Peppermint\Notifications\Feed\NotificationFeed;
+use Peppermint\Notifications\Feed\RemoteSource;
 use Peppermint\Notifications\Mirroring\BrainMirror;
 use Peppermint\Notifications\Mirroring\MirrorReceiver;
 use Peppermint\Notifications\Preferences\PreferenceResolver;
@@ -40,6 +42,12 @@ class NotificationsServiceProvider extends ServiceProvider
         $this->app->singleton(BrainMirror::class);
         $this->app->singleton(MirrorReceiver::class);
         $this->app->singleton(NotificationFeed::class);
+        // Woher die fremden Meldungen kommen, entscheidet das aufnehmende
+        // System: Ein Produkt fragt ueber die Bruecke, AI Brain ueber seinen
+        // eigenen Gateway. Wer es anders braucht, bindet eine eigene
+        // Umsetzung von RemoteSource — deshalb steht hier `bind` und keine
+        // feste Klasse im Konstruktor.
+        $this->app->bindIf(RemoteSource::class, BridgeRemoteSource::class);
         $this->app->singleton(FremdeMeldungen::class);
         $this->app->singleton(GesamtFeed::class);
         $this->app->singleton(NotificationActions::class);

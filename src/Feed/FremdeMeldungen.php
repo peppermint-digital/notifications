@@ -12,23 +12,32 @@ use Illuminate\Support\Facades\Log;
  * Die erste Fassung schob jede Meldung als Zeile in jedes Produkt. Das
  * widerspricht dem Prinzip, nach dem die uebrigen geteilten Systeme gebaut
  * sind: Es gibt eine Datenquelle, und niemand haelt Kopien. Der Kalender
- * macht es vor — {@see \App\Calendar\FremdeKalenderQuellen} im Manager
- * fragt beim Anzeigen und schreibt nichts.
+ * macht es vor — `FremdeKalenderQuellen` fragt beim Anzeigen und schreibt
+ * nichts lokal.
  *
  * Der Unterschied ist nicht akademisch. Eine Kopie hat ihren eigenen
  * Lesestand, ihre eigene Loeschung und ihr eigenes Altern: Wer drueben eine
  * Meldung als gelesen markiert, aendert hier nichts, und nach einem Monat
  * weiss niemand mehr, welche der vier Zeilen die richtige ist.
  *
+ * ## Woher gefragt wird, entscheidet die {@see RemoteSource}
+ *
+ * Ein Produkt fragt ueber die Bruecke, AI Brain ueber seinen eigenen
+ * Gateway. Diese Klasse kennt den Unterschied nicht — sie fuehrt nur
+ * zusammen und faengt Fehlschlaege ab.
+ *
  * ## Fehlschlaege
  *
  * Ein System, das nicht antwortet, FEHLT in der Liste — es bringt die Seite
- * nicht zu Fall. Gemeldet wird es trotzdem: Eine still verkuerzte Liste
- * sieht aus wie „da ist nichts", und das ist die gefaehrlichere Aussage.
+ * nicht zu Fall. Gemeldet wird es trotzdem, und zwar bis nach oben in die
+ * Ansicht: Eine still verkuerzte Liste sieht aus wie „da ist nichts", und
+ * das ist die gefaehrlichere Aussage, weil niemand nachfragt.
  */
 class FremdeMeldungen
 {
     public const CAPABILITY = 'notifications.list';
+
+    public function __construct(private readonly RemoteSource $quelle) {}
 
     /**
      * Alles, was die anderen Systeme fuer diese Person fuehren.
@@ -37,18 +46,17 @@ class FremdeMeldungen
      */
     public function holen(?string $adresse, int $grenze = 100): array
     {
-        $bruecke = 'Peppermint\\AiBrainBridge\\Facades\\AiBrain';
-
-        if ($adresse === null || ! class_exists($bruecke)) {
-            // Ohne Bruecke gibt es keine anderen Systeme — der Einzelbetrieb
-            // ist kein Fehlerfall, sondern der zweite zugesicherte Zustand.
+        if ($adresse === null || trim($adresse) === '') {
+            // Die E-Mail ist der einzige produktuebergreifende Schluessel.
+            // Ohne sie koennte ein Aufruf nur „alle" meinen — ueber
+            // Systemgrenzen hinweg waere das ein Datenleck.
             return ['items' => [], 'unreachable' => []];
         }
 
         $zeilen = [];
         $stumm = [];
 
-        foreach ($this->anbieter($bruecke) as $anbieter) {
+        foreach ($this->anbieter() as $anbieter) {
             $slug = (string) ($anbieter['slug'] ?? '');
 
             if ($slug === '') {
@@ -56,12 +64,7 @@ class FremdeMeldungen
             }
 
             try {
-                // MIT Slug: Hier ist ausdruecklich EIN System gemeint. Ohne
-                // ihn suchte Brain sich einen Anbieter aus, und bei vier
-                // Systemen waere das drei Mal der falsche.
-                $antwort = $bruecke::gateway(self::CAPABILITY, ['limit' => $grenze], $slug, $adresse);
-
-                foreach ($this->auspacken($antwort) as $zeile) {
+                foreach ($this->quelle->holen($slug, $adresse, $grenze) as $zeile) {
                     // Die Herkunft setzt der AUFRUFER, nicht das befragte
                     // System: Es kennt seinen eigenen Slug im Verbund nicht
                     // zwangslaeufig, und eine Zeile ohne Herkunft fiele in
@@ -87,10 +90,10 @@ class FremdeMeldungen
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function anbieter(string $bruecke): array
+    private function anbieter(): array
     {
         try {
-            return $bruecke::providers(self::CAPABILITY);
+            return $this->quelle->anbieter();
         } catch (\Throwable $fehler) {
             // Kein Verzeichnis, keine fremden Meldungen — aber die eigenen
             // stehen trotzdem da.
@@ -100,28 +103,5 @@ class FremdeMeldungen
 
             return [];
         }
-    }
-
-    /**
-     * Die Zeilen aus einer Gateway-Antwort schaelen.
-     *
-     * Der Gateway reicht durch, was das Werkzeug drueben geantwortet hat —
-     * und MCP-Antworten tragen ihren Inhalt je nach Fassung entweder direkt
-     * oder in `content`/`structuredContent`. Hier alle Formen abzufangen ist
-     * nicht Unentschlossenheit, sondern die Lehre aus dem Kalender: Eine
-     * neue SDK-Fassung aendert die Huelle, nicht den Inhalt.
-     *
-     * @param  array<string, mixed>  $antwort
-     * @return array<int, array<string, mixed>>
-     */
-    private function auspacken(array $antwort): array
-    {
-        foreach ([$antwort, $antwort['structuredContent'] ?? null, $antwort['content'] ?? null, $antwort['result'] ?? null] as $huelle) {
-            if (is_array($huelle) && isset($huelle['items']) && is_array($huelle['items'])) {
-                return array_values(array_filter($huelle['items'], 'is_array'));
-            }
-        }
-
-        return [];
     }
 }
