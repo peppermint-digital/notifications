@@ -121,3 +121,45 @@ it('fragt gar nicht erst fuer jemanden ohne Adresse', function (): void {
 
     expect(app(GesamtFeed::class)->for($ohne)['items'])->toBe([]);
 });
+
+it('kappt JE SYSTEM, nicht ueber die ganze Liste', function (): void {
+    // Der Fall, der das aufgedeckt hat: AI Brain hatte 3.991 ungelesene
+    // eigene Meldungen. Mit einer globalen Obergrenze stammten die 50
+    // neuesten alle von dort — und die Zeilen aus CRM und Verwaltung fielen
+    // hinten heraus, bei einer Liste, die „alles aus allen Systemen" zeigen
+    // soll.
+    config()->set('notifications.feed.max_items', 3);
+
+    foreach (range(1, 10) as $i) {
+        app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: "Eigen {$i}");
+    }
+
+    fremdeLiefern([
+        fremdeZeile(['id' => 'f1', 'title' => 'Fremd 1', 'created_at' => now()->subDays(9)->toIso8601String()]),
+        fremdeZeile(['id' => 'f2', 'title' => 'Fremd 2', 'created_at' => now()->subDays(10)->toIso8601String()]),
+    ]);
+
+    $zeilen = app(GesamtFeed::class)->for($this->ich)['items'];
+    $titel = array_column($zeilen, 'title');
+
+    expect(count(array_filter($titel, fn ($t) => str_starts_with($t, 'Eigen'))))->toBe(3)
+        // Die fremden sind VIEL aelter und waeren bei globaler Kappung weg.
+        ->and($titel)->toContain('Fremd 1', 'Fremd 2');
+});
+
+it('macht damit den Herkunfts-Filter erst brauchbar', function (): void {
+    // Der Filter arbeitet im Browser auf dem, was angekommen ist. Wer auf
+    // „CRM" klickt und nichts sieht, obwohl es dort etwas gibt, hat einen
+    // Filter, der schlimmer ist als keiner.
+    config()->set('notifications.feed.max_items', 2);
+
+    foreach (range(1, 20) as $i) {
+        app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: "Eigen {$i}");
+    }
+
+    fremdeLiefern([fremdeZeile(['created_at' => now()->subYear()->toIso8601String()])]);
+
+    $herkuenfte = array_column(app(GesamtFeed::class)->for($this->ich)['items'], 'source');
+
+    expect(array_filter($herkuenfte))->not->toBeEmpty();
+});

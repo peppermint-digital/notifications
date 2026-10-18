@@ -68,12 +68,56 @@ class GesamtFeed
         });
 
         return [
-            'items' => array_slice($zeilen, 0, (int) config('notifications.feed.max_items', 50)),
+            'items' => $this->gekapptJeHerkunft($zeilen),
             'unread_count' => (int) ($eigen['unread_count'] ?? 0) + $fremd['unread_count'],
             // Welche Systeme gerade nicht antworten. Die Ansicht sagt es —
             // eine still verkürzte Liste sieht aus wie „da ist nichts".
             'unreachable' => $fremd['unreachable'],
         ];
+    }
+
+    /**
+     * Die Obergrenze gilt JE SYSTEM, nicht für die ganze Liste.
+     *
+     * ## Der Fall, der das aufgedeckt hat
+     *
+     * AI Brain hatte 3.991 ungelesene eigene Meldungen. Eine globale
+     * Obergrenze von 50 bedeutete: Die 50 neuesten stammten alle von hier,
+     * und die Zeilen aus CRM und Verwaltung fielen hinten heraus — bei einer
+     * Liste, die ausdrücklich „alles aus allen Systemen" zeigen soll.
+     *
+     * Schlimmer noch war die Folge für den Herkunfts-Filter: Er arbeitet im
+     * Browser auf dem, was angekommen ist. Wer auf „CRM" klickte, sah nichts
+     * — obwohl es dort etwas gab. Ein Filter, der leere Ergebnisse liefert,
+     * wo es Treffer gibt, ist schlimmer als kein Filter.
+     *
+     * Also: aus jedem System die neuesten `max_items`. Die Gesamtliste wird
+     * dadurch länger (bei vier Systemen bis zum Vierfachen), aber jede
+     * Herkunft ist vertreten — und darum geht es auf dieser Seite.
+     *
+     * @param  array<int, array<string, mixed>>  $zeilen
+     * @return array<int, array<string, mixed>>
+     */
+    private function gekapptJeHerkunft(array $zeilen): array
+    {
+        $grenze = (int) config('notifications.feed.max_items', 50);
+
+        $gezaehlt = [];
+        $behalten = [];
+
+        // Die Liste ist bereits sortiert — wer zuerst kommt, ist der
+        // neuere. Deshalb reicht ein Durchlauf.
+        foreach ($zeilen as $zeile) {
+            $herkunft = (string) ($zeile['source'] ?? '');
+
+            $gezaehlt[$herkunft] = ($gezaehlt[$herkunft] ?? 0) + 1;
+
+            if ($gezaehlt[$herkunft] <= $grenze) {
+                $behalten[] = $zeile;
+            }
+        }
+
+        return $behalten;
     }
 
     /**
