@@ -246,5 +246,6 @@ function normalisieren(roh: unknown): NotificationItem {
         isRead: Boolean(r.is_read),
         createdAt: (r.created_at as string) ?? '',
         source: (r.source as string | null) ?? null,
+        sourceLabel: (r.source_label as string | null) ?? null,
     };
 }

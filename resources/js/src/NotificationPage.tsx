@@ -107,7 +107,29 @@ export function NotificationPage({
 
     const schluessel = (item: NotificationItem): string => item.source ?? HIER;
 
-    const bezeichnung = (key: string): string => (key === HIER ? localLabel : (sourceLabels[key] ?? key));
+    /**
+     * Wie ein System heissen soll.
+     *
+     * Reihenfolge: was der Holer mitgeliefert hat, dann die Zuordnung des
+     * Produkts, dann der rohe Schluessel. Die mitgelieferte Beschriftung
+     * steht vorn, weil der Komm-Layer seine eigenen Schluessel vergibt —
+     * sie sind nicht zwangslaeufig der Produkt-Slug, und dann griff bisher
+     * der Rueckfall: An den Reitern stand klein „crm" neben „Manager".
+     */
+    const gelieferteNamen = useMemo(() => {
+        const namen: Record<string, string> = {};
+
+        for (const item of items) {
+            if (item.source && item.sourceLabel) {
+                namen[item.source] = item.sourceLabel;
+            }
+        }
+
+        return namen;
+    }, [items]);
+
+    const bezeichnung = (key: string): string =>
+        key === HIER ? localLabel : (gelieferteNamen[key] ?? sourceLabels[key] ?? key);
 
     /**
      * Die Herkünfte, die wirklich vorkommen — mit ihrer Zahl.
@@ -128,7 +150,7 @@ export function NotificationPage({
             // die sich beim Nachladen nicht umsortiert.
             .sort(([a], [b]) => (a === HIER ? -1 : b === HIER ? 1 : bezeichnung(a).localeCompare(bezeichnung(b))))
             .map(([key, anzahl]) => ({ key, anzahl, label: bezeichnung(key) }));
-    }, [items, sourceLabels, localLabel]);
+    }, [items, gelieferteNamen, sourceLabels, localLabel]);
 
     const gefiltert = useMemo(
         () =>
@@ -161,8 +183,12 @@ export function NotificationPage({
                     <div>
                         <h1 className="text-xl font-semibold leading-tight">{title}</h1>
                         <p className="text-xs text-muted-foreground">
+                            {/* Zwei Zahlen, die verschiedene Dinge zaehlen:
+                                Zeilen sind gebuendelt, ungelesene nicht. „206
+                                ungelesen von 102 Zeilen" las sich wie ein
+                                Rechenfehler. */}
                             {unreadCount > 0
-                                ? `${unreadCount} ungelesen von ${items.length} Zeilen`
+                                ? `${items.length} Zeile${items.length === 1 ? '' : 'n'} · ${unreadCount} ungelesen`
                                 : `${items.length} Zeile${items.length === 1 ? '' : 'n'}, alles gelesen`}
                         </p>
                     </div>

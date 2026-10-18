@@ -61,7 +61,10 @@ describe('Kopfzeile', () => {
     it('zaehlt ungelesene Meldungen, nicht Zeilen', () => {
         zeige([meldung({ id: 1 }), meldung({ id: 2, isRead: true })]);
 
-        expect(screen.getByText('1 ungelesen von 2 Zeilen')).toBeDefined();
+        // Zwei Zahlen, die verschiedene Dinge zaehlen: Zeilen sind
+        // gebuendelt, ungelesene nicht. „206 ungelesen von 102 Zeilen" las
+        // sich wie ein Rechenfehler.
+        expect(screen.getByText('2 Zeilen · 1 ungelesen')).toBeDefined();
     });
 
     it('sagt es anders, wenn alles gelesen ist', () => {
@@ -207,5 +210,28 @@ describe('Stumme Systeme', () => {
         zeige([meldung()]);
 
         expect(screen.queryByText(/antwortet gerade nicht/)).toBeNull();
+    });
+});
+
+describe('Die Beschriftung der Systeme', () => {
+    it('nimmt die mitgelieferte Beschriftung vor die eigene Zuordnung', () => {
+        // Der Komm-Layer vergibt eigene Schluessel — sie sind nicht
+        // zwangslaeufig der Produkt-Slug. Stand in der Zuordnung
+        // `peppermint-crm`, lieferte der Layer aber `crm`, griff der
+        // Rueckfall: An den Reitern stand klein „crm" neben „Manager".
+        zeige([meldung(), meldung({ id: 2, source: 'crm', sourceLabel: 'CRM' })], {
+            sourceLabels: { 'peppermint-crm': 'Ganz anders' },
+        });
+
+        expect(reiter('CRM').textContent).toBe('CRM1');
+        expect(screen.queryByText('Ganz anders')).toBeNull();
+    });
+
+    it('faellt auf die Zuordnung zurueck, wenn nichts mitgeliefert wurde', () => {
+        zeige([meldung(), meldung({ id: 2, source: 'peppermint-crm' })], {
+            sourceLabels: { 'peppermint-crm': 'CRM' },
+        });
+
+        expect(reiter('CRM').textContent).toBe('CRM1');
     });
 });

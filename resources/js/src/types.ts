@@ -57,10 +57,21 @@ export interface NotificationItem {
     createdAt: string;
 
     /**
-     * Aus welchem Produkt die Meldung stammt. Leer heisst: aus diesem.
-     * Gefuellt, sobald ueber AI Brain gespiegelt wird.
+     * Aus welchem System die Meldung stammt. Leer heisst: aus diesem.
      */
     source?: string | null;
+
+    /**
+     * Wie dieses System heisst — mitgeliefert von dem, der es geholt hat.
+     *
+     * Das ist die verlaesslichere Quelle als eine Zuordnungstabelle im
+     * Produkt: Der Schluessel, den der Komm-Layer vergibt, ist nicht
+     * zwangslaeufig der Produkt-Slug. Stand in der Tabelle
+     * `peppermint-crm`, lieferte der Layer aber `crm`, dann griff der
+     * Rueckfall — und an den Filter-Reitern stand klein „crm" neben
+     * „Manager" und „AI Brain".
+     */
+    sourceLabel?: string | null;
 }
 
 export interface NotificationFeed {
