@@ -1,3 +1,4 @@
+export { InboxButton, type InboxButtonProps } from './InboxButton';
 export { NotificationBell, type NotificationBellProps } from './NotificationBell';
 export { NotificationList, type NotificationListProps } from './NotificationList';
 export { NotificationPage, type NotificationPageProps } from './NotificationPage';
