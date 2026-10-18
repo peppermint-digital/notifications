@@ -197,3 +197,29 @@ it('bricht nicht ab, wenn die Tabelle fuer die Versandzeitpunkte fehlt', functio
 
     Mail::assertNothingSent();
 });
+
+it('zaehlt im Probelauf die Mails, nicht die Menschen', function (): void {
+    // „12 Menschen kaemen in Frage" klingt nach zwoelf Mails und meint oft
+    // null. Eine Zahl, die nach Versand klingt und keinen meint, ist genau
+    // die Art Auskunft, nach der jemand den Zeitplan abschaltet.
+    $this->notifier->send(to: $this->ich, type: 'task.assigned', title: 'Keine Mail, Vorgabe ist aus');
+
+    expect(app(EmailDelivery::class)->vorschau($this->ich))->toBe(0);
+
+    $this->loeser->set($this->ich, 'task.assigned', [Channel::Email->value => Level::Digest]);
+
+    expect(app(EmailDelivery::class)->vorschau($this->ich))->toBe(1);
+});
+
+it('schickt im Probelauf nichts und merkt sich auch nichts', function (): void {
+    $this->loeser->set($this->ich, 'task.assigned', [Channel::Email->value => Level::Digest]);
+    $this->notifier->send(to: $this->ich, type: 'task.assigned', title: 'Probe');
+
+    app(EmailDelivery::class)->vorschau($this->ich);
+
+    Mail::assertNothingSent();
+    // Haette die Vorschau den Zeitpunkt fortgeschrieben, waere die Meldung
+    // beim naechsten echten Lauf verschwunden — ein Probelauf, der Post
+    // verschluckt.
+    expect(app(EmailDelivery::class)->sammeln($this->ich))->toBe(1);
+});

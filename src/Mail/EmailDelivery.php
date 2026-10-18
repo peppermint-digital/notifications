@@ -95,22 +95,7 @@ class EmailDelivery
             return 0;
         }
 
-        $seit = $this->letzterVersand($empfaenger);
-
-        $meldungen = Notification::query()
-            ->forUser($empfaenger->getKey())
-            ->when($seit !== null, fn ($q) => $q->where(Notification::column('created_at'), '>', $seit))
-            ->orderBy(Notification::column('created_at'))
-            ->get()
-            // Erst hier filtern und nicht in SQL: Welche Stufe für eine Art
-            // gilt, steht in der Konfiguration UND in der Tabelle, und die
-            // Vorgabe hat gar keine Zeile. Das ist keine Bedingung, die sich
-            // in ein WHERE schreiben lässt.
-            ->filter(fn (Notification $m): bool => $this->einstellungen->level(
-                $empfaenger,
-                (string) $m->field('type'),
-                Channel::Email,
-            ) === Level::Digest);
+        $meldungen = $this->auswahl($empfaenger, $this->letzterVersand($empfaenger));
 
         // Den Zeitpunkt IMMER fortschreiben, auch wenn nichts dabei war.
         // Sonst wächst das Fenster bei jemandem, der nur Arten mit `off`
@@ -125,6 +110,24 @@ class EmailDelivery
         $zeilen = $meldungen->map($this->zeile(...))->values()->all();
 
         return $this->schicken($empfaenger, $adresse, $zeilen) ? count($zeilen) : 0;
+    }
+
+    /**
+     * Wie viele Meldungen jetzt in die Sammel-Mail gingen — ohne zu schicken.
+     *
+     * Fuer den Probelauf. Ohne diese Zahl meldete er „12 Menschen kaemen in
+     * Frage", waehrend die Antwort „null Mails" lautet — weil die Vorgabe
+     * `off` ist und niemand etwas anderes eingestellt hat. Eine Zahl, die
+     * nach zwoelf Mails klingt und keine meint, ist genau die Art Auskunft,
+     * nach der jemand den Zeitplan vorsichtshalber abschaltet.
+     */
+    public function vorschau(Model $empfaenger): int
+    {
+        if ($this->adresse($empfaenger) === null || ! $this->tabelleDa()) {
+            return 0;
+        }
+
+        return $this->auswahl($empfaenger, $this->letzterVersand($empfaenger))->count();
     }
 
     /**
@@ -146,6 +149,29 @@ class EmailDelivery
             ->pluck(Notification::column('user_id'));
 
         return $modell::query()->whereIn((new $modell)->getKeyName(), $ids)->get();
+    }
+
+    /**
+     * Was fuer diesen Menschen in die Sammel-Mail gehoert.
+     *
+     * @return \Illuminate\Support\Collection<int, Notification>
+     */
+    private function auswahl(Model $empfaenger, ?Carbon $seit): \Illuminate\Support\Collection
+    {
+        return Notification::query()
+            ->forUser($empfaenger->getKey())
+            ->when($seit !== null, fn ($q) => $q->where(Notification::column('created_at'), '>', $seit))
+            ->orderBy(Notification::column('created_at'))
+            ->get()
+            // Erst hier filtern und nicht in SQL: Welche Stufe für eine Art
+            // gilt, steht in der Konfiguration UND in der Tabelle, und die
+            // Vorgabe hat gar keine Zeile. Das ist keine Bedingung, die sich
+            // in ein WHERE schreiben lässt.
+            ->filter(fn (Notification $m): bool => $this->einstellungen->level(
+                $empfaenger,
+                (string) $m->field('type'),
+                Channel::Email,
+            ) === Level::Digest);
     }
 
     /**

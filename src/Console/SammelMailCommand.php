@@ -27,7 +27,23 @@ class SammelMailCommand extends Command
         $faellige = $versand->faellige();
 
         if ($this->option('dry-run')) {
-            $this->info("{$faellige->count()} Menschen kaemen in Frage.");
+            // Beide Zahlen, und die zweite ist die, auf die es ankommt:
+            // „12 Menschen kaemen in Frage" klingt nach zwoelf Mails und
+            // meint oft null — weil die Vorgabe `off` ist und niemand etwas
+            // anderes eingestellt hat.
+            $mails = 0;
+            $meldungen = 0;
+
+            foreach ($faellige as $mensch) {
+                $anzahl = $versand->vorschau($mensch);
+
+                if ($anzahl > 0) {
+                    $mails++;
+                    $meldungen += $anzahl;
+                }
+            }
+
+            $this->info("{$faellige->count()} Menschen geprueft — {$mails} Mails mit zusammen {$meldungen} Meldungen gingen hinaus.");
 
             return self::SUCCESS;
         }
