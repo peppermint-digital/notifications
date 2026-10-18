@@ -48,6 +48,7 @@ return [
         'notifications' => 'notifications',
         'push_subscriptions' => 'push_subscriptions',
         'preferences' => 'notification_preferences',
+        'digests' => 'notification_digests',
     ],
 
     /*
@@ -312,7 +313,16 @@ return [
         'defaults' => [
             'push' => 'instant',
             'inapp' => 'instant',
-            'email' => 'digest',
+
+            // `off`, und das ist eine bewusste Abkehr von der urspruenglichen
+            // Vorgabe `digest` (#8165).
+            //
+            // Solange der E-Mail-Weg nichts tat, war `digest` harmlos. Mit dem
+            // Einschalten haette er bedeutet: Jeder Kollege bekommt ab sofort
+            // taeglich Post, ohne je etwas eingestellt zu haben. Der Kanal,
+            // der am meisten kostet, gehoert nicht in die Voreinstellung — er
+            // gehoert zum Mitmachen, nicht zum Abbestellen.
+            'email' => 'off',
         ],
 
         /*

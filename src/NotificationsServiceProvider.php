@@ -13,6 +13,8 @@ use Peppermint\Notifications\Mirroring\BrainMirror;
 use Peppermint\Notifications\Mirroring\MirrorReceiver;
 use Peppermint\Notifications\Preferences\PreferenceResolver;
 use Peppermint\Notifications\Push\PushForwarder;
+use Peppermint\Notifications\Console\SammelMailCommand;
+use Peppermint\Notifications\Mail\EmailDelivery;
 use Peppermint\Notifications\Push\PushKeys;
 use Peppermint\Notifications\Types\TypeRegistry;
 
@@ -43,6 +45,7 @@ class NotificationsServiceProvider extends ServiceProvider
         $this->app->singleton(PreferenceResolver::class);
         $this->app->singleton(PushKeys::class);
         $this->app->singleton(PushForwarder::class);
+        $this->app->singleton(EmailDelivery::class);
     }
 
     public function boot(): void
@@ -76,6 +79,40 @@ class NotificationsServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(__DIR__.'/../database/preferences-migrations');
 
         $this->spiegelungVerdrahten();
+        $this->mailVerdrahten();
+
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'notifications');
+
+        $this->publishes([
+            __DIR__.'/../resources/views' => resource_path('views/vendor/notifications'),
+        ], 'notifications-views');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([SammelMailCommand::class]);
+        }
+    }
+
+    /**
+     * Die Einzelmail an das Entstehen einer Meldung haengen.
+     *
+     * Bewusst nur `NotificationCreated` und NICHT `NotificationRolled`: Eine
+     * fortgeschriebene Sammelmeldung ist dieselbe Sache noch einmal. Eine
+     * zweite Mail dafuer waere genau die Flut, gegen die das Rollen gebaut
+     * ist — und sie traefe ausgerechnet die lautesten Arten.
+     */
+    private function mailVerdrahten(): void
+    {
+        Event::listen(NotificationCreated::class, function (NotificationCreated $ereignis): void {
+            try {
+                app(EmailDelivery::class)->sofort($ereignis->notification);
+            } catch (\Throwable $fehler) {
+                // Fail-open: Eine Mail, die nicht hinausgeht, darf den
+                // Vorgang nicht abbrechen, der die Meldung ausgeloest hat.
+                Log::warning('Sofort-Mail zu einer Benachrichtigung fehlgeschlagen.', [
+                    'error' => $fehler->getMessage(),
+                ]);
+            }
+        });
     }
 
     /**

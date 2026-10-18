@@ -25,7 +25,7 @@ it('liefert die Matrix mitsamt Woertern fuer Wege und Stufen', function (): void
     $this->actingAs($this->ich)->getJson('/api/notification-preferences')
         ->assertOk()
         ->assertJsonPath('types.0.type', 'task.assigned')
-        ->assertJsonPath('types.0.channels.email.level', 'digest')
+        ->assertJsonPath('types.0.channels.email.level', 'off')
         ->assertJsonCount(3, 'channels')
         ->assertJsonCount(3, 'levels');
 });

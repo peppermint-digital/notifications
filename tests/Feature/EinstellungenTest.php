@@ -29,10 +29,16 @@ beforeEach(function (): void {
 
 /* --------------------------------------------------------- die Vorgaben */
 
-it('sammelt E-Mails per Vorgabe, statt sie einzeln zu schicken', function (): void {
+it('schickt per Vorgabe gar keine E-Mails', function (): void {
     // Der eigentliche Grund fuer drei Stufen: Push und Glocke kosten eine
     // Zeile, eine E-Mail kostet eine E-Mail.
-    expect($this->loeser->vorgabe('task.assigned', Channel::Email))->toBe(Level::Digest)
+    //
+    // Die Vorgabe war bis zum 18.10.2026 `digest`, und das war harmlos,
+    // solange der Weg nichts tat. Mit dem Einschalten (#8165) haette er
+    // bedeutet: Jeder Kollege bekommt ab sofort taeglich Post, ohne je etwas
+    // eingestellt zu haben. Der teuerste Kanal gehoert zum Mitmachen, nicht
+    // zum Abbestellen.
+    expect($this->loeser->vorgabe('task.assigned', Channel::Email))->toBe(Level::Off)
         ->and($this->loeser->vorgabe('task.assigned', Channel::InApp))->toBe(Level::Instant);
 });
 
@@ -41,7 +47,7 @@ it('laesst das Produkt die Vorgabe je Art ueberschreiben', function (): void {
 
     expect($this->loeser->vorgabe('invoice.approval', Channel::Email))->toBe(Level::Instant)
         // Die uebrigen Arten bleiben, wo sie waren.
-        ->and($this->loeser->vorgabe('task.assigned', Channel::Email))->toBe(Level::Digest);
+        ->and($this->loeser->vorgabe('task.assigned', Channel::Email))->toBe(Level::Off);
 });
 
 it('faellt bei einem unsinnigen Wert auf die Natur des Weges zurueck', function (): void {
@@ -121,7 +127,7 @@ it('unterscheidet in der Matrix „selbst entschieden" von „folgt der Vorgabe"
     $zeile = collect($this->loeser->matrix($this->ich))->firstWhere('type', 'task.assigned');
 
     expect($zeile['channels']['push'])->toBe(['level' => 'off', 'eigen' => true, 'vorgabe' => 'instant'])
-        ->and($zeile['channels']['email'])->toBe(['level' => 'digest', 'eigen' => false, 'vorgabe' => 'digest']);
+        ->and($zeile['channels']['email'])->toBe(['level' => 'off', 'eigen' => false, 'vorgabe' => 'off']);
 });
 
 /* ------------------------------------------------- der Riegel beim Zustellen */
@@ -214,7 +220,7 @@ it('liefert ohne Tabelle die Vorgaben statt einer Ausnahme', function (): void {
     app(PreferenceResolver::class)->vergessen();
 
     expect(app(PreferenceResolver::class)->level($this->ich, 'task.assigned', Channel::Email))
-        ->toBe(Level::Digest);
+        ->toBe(Level::Off);
 });
 
 it('sieht nur einmal nach, ob es die Tabelle gibt', function (): void {
