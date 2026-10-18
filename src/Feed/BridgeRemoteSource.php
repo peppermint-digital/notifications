@@ -44,7 +44,7 @@ class BridgeRemoteSource implements RemoteSource
         if ($slug === self::HUB_SLUG) {
             // Den Hub fragt man direkt, nicht ueber den Gateway: Der
             // vermittelt zwischen PRODUKTEN, und das Brain ist keines.
-            return Auspacken::zeilen(
+            return Auspacken::antwort(
                 (self::BRUECKE)::call('list-notifications-tool', ['limit' => $grenze]),
             );
         }
@@ -59,6 +59,6 @@ class BridgeRemoteSource implements RemoteSource
             $adresse,
         );
 
-        return Auspacken::zeilen(is_array($antwort) ? $antwort : []);
+        return Auspacken::antwort(is_array($antwort) ? $antwort : []);
     }
 }

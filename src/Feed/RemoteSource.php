@@ -31,7 +31,15 @@ interface RemoteSource
     /**
      * Die Meldungen EINES Systems fuer diese Person.
      *
-     * @return array<int, array<string, mixed>>
+     * Mit der Zahl der Ungelesenen, wie das System sie selbst zaehlt — und
+     * nicht als Anzahl der gelieferten Zeilen.
+     *
+     * Der Unterschied ist gross: Die Zeilen sind gebuendelt („17 ×
+     * Service down" ist EINE Zeile), und die Liste ist gekappt. Wer die
+     * Zeilen zaehlt, bekommt in jedem System eine andere Summe fuer
+     * dieselbe Sache — im Manager stand 206, im CRM 102.
+     *
+     * @return array{items: array<int, array<string, mixed>>, unread_count: int}
      *
      * @throws \Throwable wenn das System nicht antwortet — der Aufrufer
      *                    entscheidet, ob das die Seite kostet (es tut es nicht).

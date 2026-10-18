@@ -42,7 +42,7 @@ class FremdeMeldungen
     /**
      * Alles, was die anderen Systeme fuer diese Person fuehren.
      *
-     * @return array{items: array<int, array<string, mixed>>, unreachable: array<int, string>}
+     * @return array{items: array<int, array<string, mixed>>, unread_count: int, unreachable: array<int, string>}
      */
     public function holen(?string $adresse, int $grenze = 100): array
     {
@@ -50,11 +50,12 @@ class FremdeMeldungen
             // Die E-Mail ist der einzige produktuebergreifende Schluessel.
             // Ohne sie koennte ein Aufruf nur „alle" meinen — ueber
             // Systemgrenzen hinweg waere das ein Datenleck.
-            return ['items' => [], 'unreachable' => []];
+            return ['items' => [], 'unread_count' => 0, 'unreachable' => []];
         }
 
         $zeilen = [];
         $stumm = [];
+        $ungelesen = 0;
 
         foreach ($this->anbieter() as $anbieter) {
             $slug = (string) ($anbieter['slug'] ?? '');
@@ -64,7 +65,15 @@ class FremdeMeldungen
             }
 
             try {
-                foreach ($this->quelle->holen($slug, $adresse, $grenze) as $zeile) {
+                $antwort = $this->quelle->holen($slug, $adresse, $grenze);
+
+                // Die Zahl kommt vom System selbst, nicht aus der Laenge der
+                // Liste: Die Zeilen sind gebuendelt und gekappt. Wer sie
+                // zaehlt, bekommt in jedem System eine andere Summe fuer
+                // dieselbe Sache.
+                $ungelesen += (int) ($antwort['unread_count'] ?? 0);
+
+                foreach ($antwort['items'] ?? [] as $zeile) {
                     // Die Herkunft setzt der AUFRUFER, nicht das befragte
                     // System: Es kennt seinen eigenen Slug im Verbund nicht
                     // zwangslaeufig, und eine Zeile ohne Herkunft fiele in
@@ -84,7 +93,7 @@ class FremdeMeldungen
             }
         }
 
-        return ['items' => $zeilen, 'unreachable' => $stumm];
+        return ['items' => $zeilen, 'unread_count' => $ungelesen, 'unreachable' => $stumm];
     }
 
     /**

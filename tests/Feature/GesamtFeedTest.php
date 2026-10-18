@@ -24,10 +24,18 @@ beforeEach(function (): void {
 });
 
 /** Die Holer-Seite durch feste Antworten ersetzen. */
-function fremdeLiefern(array $zeilen, array $stumm = []): void
+function fremdeLiefern(array $zeilen, array $stumm = [], ?int $ungelesen = null): void
 {
+    // Die Zahl kommt vom befragten System selbst — nicht aus der Laenge der
+    // Liste. Ohne Angabe wird gezaehlt, was ungelesen aussieht.
+    $ungelesen ??= count(array_filter($zeilen, fn (array $z): bool => empty($z['is_read'])));
+
     $attrappe = Mockery::mock(FremdeMeldungen::class);
-    $attrappe->shouldReceive('holen')->andReturn(['items' => $zeilen, 'unreachable' => $stumm]);
+    $attrappe->shouldReceive('holen')->andReturn([
+        'items' => $zeilen,
+        'unread_count' => $ungelesen,
+        'unreachable' => $stumm,
+    ]);
 
     app()->instance(FremdeMeldungen::class, $attrappe);
 }
@@ -91,7 +99,7 @@ it('holt die fremden Zeilen nicht bei jedem Aufruf neu', function (): void {
     // Der Abruf geht uebers Netz an jedes angebundene System, und das
     // Abzeichen haengt an JEDER Seite.
     $attrappe = Mockery::mock(FremdeMeldungen::class);
-    $attrappe->shouldReceive('holen')->once()->andReturn(['items' => [], 'unreachable' => []]);
+    $attrappe->shouldReceive('holen')->once()->andReturn(['items' => [], 'unread_count' => 0, 'unreachable' => []]);
     app()->instance(FremdeMeldungen::class, $attrappe);
 
     app(GesamtFeed::class)->for($this->ich);
@@ -103,7 +111,7 @@ it('holt die fremden Zeilen nicht bei jedem Aufruf neu', function (): void {
 
 it('holt auf Verlangen doch neu', function (): void {
     $attrappe = Mockery::mock(FremdeMeldungen::class);
-    $attrappe->shouldReceive('holen')->twice()->andReturn(['items' => [], 'unreachable' => []]);
+    $attrappe->shouldReceive('holen')->twice()->andReturn(['items' => [], 'unread_count' => 0, 'unreachable' => []]);
     app()->instance(FremdeMeldungen::class, $attrappe);
 
     app(GesamtFeed::class)->for($this->ich);
@@ -162,4 +170,16 @@ it('macht damit den Herkunfts-Filter erst brauchbar', function (): void {
     $herkuenfte = array_column(app(GesamtFeed::class)->for($this->ich)['items'], 'source');
 
     expect(array_filter($herkuenfte))->not->toBeEmpty();
+});
+
+it('nimmt die Zahl der Ungelesenen vom befragten System, nicht aus der Liste', function (): void {
+    // Die Zeilen sind gebuendelt („17 × Service down" ist EINE Zeile) und
+    // gekappt. Wer sie zaehlt, bekommt in jedem System eine andere Summe
+    // fuer dieselbe Sache — im Manager stand 206, im CRM 102.
+    app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: 'Eigen');
+
+    // Eine Zeile, aber das System meldet 17 Ungelesene dahinter.
+    fremdeLiefern([fremdeZeile()], [], ungelesen: 17);
+
+    expect(app(GesamtFeed::class)->for($this->ich)['unread_count'])->toBe(18);
 });

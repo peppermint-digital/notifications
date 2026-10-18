@@ -152,17 +152,12 @@ class GesamtFeed
         return Cache::remember($schluessel, self::HALTBAR, function () use ($adresse): array {
             $geholt = $this->fremde->holen($adresse);
 
-            $ungelesen = 0;
-
-            foreach ($geholt['items'] as $zeile) {
-                if (empty($zeile['is_read'])) {
-                    $ungelesen++;
-                }
-            }
-
             return [
                 'items' => $geholt['items'],
-                'unread_count' => $ungelesen,
+                // Die Zahl kommt von den Systemen selbst. Die Zeilen hier zu
+                // zaehlen gaebe in jedem System eine andere Summe fuer
+                // dieselbe Sache — sie sind gebuendelt und gekappt.
+                'unread_count' => (int) ($geholt['unread_count'] ?? 0),
                 'unreachable' => $geholt['unreachable'],
             ];
         });

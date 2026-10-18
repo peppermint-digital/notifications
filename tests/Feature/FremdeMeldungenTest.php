@@ -52,7 +52,7 @@ it('setzt die Herkunft an jede geholte Zeile', function (): void {
 
         public function holen(string $slug, string $adresse, int $grenze): array
         {
-            return [['id' => 1, 'title' => 'Von drueben']];
+            return ['items' => [['id' => 1, 'title' => 'Von drueben']], 'unread_count' => 1];
         }
     });
 
@@ -79,7 +79,7 @@ it('nennt ein System, das nicht antwortet, statt die Seite zu verlieren', functi
                 throw new \RuntimeException('Zeitueberschreitung');
             }
 
-            return [['id' => 1, 'title' => 'Von B']];
+            return ['items' => [['id' => 1, 'title' => 'Von B']], 'unread_count' => 1];
         }
     });
 
@@ -100,7 +100,7 @@ it('ueberlebt ein Verzeichnis, das gar nicht antwortet', function (): void {
 
         public function holen(string $slug, string $adresse, int $grenze): array
         {
-            return [];
+            return ['items' => [], 'unread_count' => 0];
         }
     });
 
