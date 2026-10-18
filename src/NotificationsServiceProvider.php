@@ -14,7 +14,6 @@ use Peppermint\Notifications\Feed\GesamtFeed;
 use Peppermint\Notifications\Feed\NotificationFeed;
 use Peppermint\Notifications\Feed\RemoteSource;
 use Peppermint\Notifications\Mirroring\BrainMirror;
-use Peppermint\Notifications\Mirroring\MirrorReceiver;
 use Peppermint\Notifications\Preferences\PreferenceResolver;
 use Peppermint\Notifications\Push\PushForwarder;
 use Peppermint\Notifications\Bridge\NativeBridge;
@@ -40,7 +39,6 @@ class NotificationsServiceProvider extends ServiceProvider
         // Ableitung.
         $this->app->singleton(Notifier::class);
         $this->app->singleton(BrainMirror::class);
-        $this->app->singleton(MirrorReceiver::class);
         $this->app->singleton(NotificationFeed::class);
         // Woher die fremden Meldungen kommen, entscheidet das aufnehmende
         // System: Ein Produkt fragt ueber die Bruecke, AI Brain ueber seinen
@@ -137,65 +135,41 @@ class NotificationsServiceProvider extends ServiceProvider
      * das Paket allein benutzt, hat keine Verbindung nach draussen, auch
      * keine, die nur gerade nichts tut.
      */
+    /**
+     * Die SENDENDE Seite: jede neue Meldung als SIGNAL an den Hub melden.
+     *
+     * ## Signal, nicht Kopie
+     *
+     * Hier wird nichts gespiegelt. Die Meldung bleibt, wo sie entstanden
+     * ist; das Brain liest sie bei Bedarf ueber `notifications.list` ab.
+     * Was hinausgeht, ist ein Anstoss: „Fuer diesen Menschen ist gerade
+     * etwas passiert." Das Brain legt daraufhin KEINE Zeile an, es schickt
+     * nur den Push — denn seit alle Produkte seinen VAPID-Schluessel holen,
+     * kann niemand sonst mehr signieren.
+     *
+     * Ohne dieses Signal gaebe es keinen Push aus den Produkten: Ein
+     * Lesezugriff weiss erst beim naechsten Abruf, dass etwas da ist, und
+     * ein Telefon klingelt davon nicht.
+     *
+     * Bewusst nur `NotificationCreated` und NICHT `NotificationRolled`:
+     * Eine fortgeschriebene Sammelmeldung ist dieselbe Sache noch einmal,
+     * und ein zweites Mal klingeln soll sie nicht.
+     *
+     * ## Warum es keine empfangende Seite gibt
+     *
+     * Bis v0.18 hing hier ein Horcher, der zurueckgespiegelte Meldungen
+     * lokal anlegte. Das war der falsche Aufbau: Solange es das Brain gibt,
+     * ist es die einzige gueltige Quelle, und Daten werden nirgendwohin
+     * kopiert. Die Produkte zeigen fremde Meldungen heute, indem sie sie
+     * ueber die Bruecke LESEN ({@see \Peppermint\Notifications\Feed\BridgeRemoteSource}) —
+     * nicht, indem sie sie besitzen.
+     */
     private function spiegelungVerdrahten(): void
     {
         if (config('notifications.hub', 'local') !== 'brain') {
             return;
         }
 
-        // Die SENDENDE Seite: jede neue Meldung an den Hub melden.
-        //
-        // Bewusst nur `NotificationCreated` und NICHT `NotificationRolled`:
-        // Eine fortgeschriebene Sammelmeldung ist dieselbe Sache noch einmal,
-        // und sie drueben als zweite Zeile anzulegen waere genau die Flut,
-        // gegen die das Rollen gebaut ist.
         Event::listen(NotificationCreated::class, [BrainMirror::class, 'handle']);
-
-        $this->empfangVerdrahten();
-    }
-
-    /**
-     * Die EMPFANGENDE Seite: was der Hub zurueckspiegelt, lokal anlegen.
-     *
-     * Die Bruecke feuert `AiBrainEventReceived` fuer jedes signierte
-     * Ereignis, das AI Brain an dieses Produkt schickt. Davon interessiert
-     * hier genau eine Art.
-     *
-     * ## Warum das lange gefehlt hat
-     *
-     * Beim Bau der Spiegelung war die sendende Seite offensichtlich und die
-     * empfangende nicht: Das AI Brain empfaengt ueber seinen eigenen
-     * Endpunkt (es ist der Hub), und solange man nur dorthin schickt,
-     * funktioniert alles. Dass ein PRODUKT auch empfaengt, faellt erst auf,
-     * wenn ein zweites abonniert — und dann steht da nichts.
-     *
-     * Aufgefallen beim Erklaeren des Aufbaus, nicht beim Bauen.
-     */
-    private function empfangVerdrahten(): void
-    {
-        $ereignis = 'Peppermint\\AiBrainBridge\\Events\\AiBrainEventReceived';
-
-        if (! class_exists($ereignis)) {
-            // Ohne Bruecke gibt es nichts zu empfangen. Das meldet bereits
-            // der BrainMirror beim ersten Sendeversuch — eine zweite Warnung
-            // an derselben Ursache waere nur Rauschen.
-            return;
-        }
-
-        Event::listen($ereignis, function (object $e): void {
-            if (($e->event->type ?? null) !== BrainMirror::EVENT_TYPE) {
-                return;
-            }
-
-            try {
-                app(MirrorReceiver::class)->empfangen((array) ($e->event->payload ?? []));
-            } catch (\Throwable $fehler) {
-                // Fail-open: Eine Meldung, die hier nicht ankommt, darf den
-                // Empfang der uebrigen Ereignisse nicht stoeren.
-                Log::warning('Gespiegelte Benachrichtigung konnte nicht angelegt werden.', [
-                    'error' => $fehler->getMessage(),
-                ]);
-            }
-        });
     }
 }
