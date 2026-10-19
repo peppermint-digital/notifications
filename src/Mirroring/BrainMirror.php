@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Peppermint\Notifications\Events\NotificationCreated;
 use Peppermint\Notifications\Models\Notification;
+use Peppermint\Notifications\Support\Bruecke;
 
 /**
  * Meldet eine neu entstandene Meldung an AI Brain — damit sie auch in den
@@ -95,15 +96,21 @@ class BrainMirror
     }
 
     /**
-     * Ist die Brücke da?
+     * Ist die Bruecke eingerichtet?
      *
-     * `hub: brain` ohne das Brücken-Paket ist eine Fehlkonfiguration, kein
-     * Randfall: Jemand hält die Spiegelung für aktiv, während nichts
-     * gespiegelt wird. Deshalb laut — aber nur EINMAL je Prozess.
+     * Nicht „installiert" — das ist sie seit dem 19.10.2026 immer, sie ist
+     * eine feste Abhaengigkeit. Die offene Frage ist die Einrichtung:
+     * `hub: brain` ohne eingerichtete Bruecke ist eine Fehlkonfiguration,
+     * kein Randfall. Jemand haelt das Signal fuer aktiv, waehrend nichts
+     * hinausgeht.
+     *
+     * Deshalb laut — aber nur EINMAL je Prozess. Das Brain schreibt 243
+     * Meldungen am Tag; eine Warnung je Stueck macht aus einem Hinweis
+     * eine Flut, und die naechste echte Meldung geht darin unter.
      */
     private function bruecke(): bool
     {
-        if (class_exists(self::BRIDGE)) {
+        if (Bruecke::verfuegbar()) {
             return true;
         }
 
@@ -111,8 +118,8 @@ class BrainMirror
             $this->brueckeGemeldet = true;
 
             Log::warning(
-                'notifications.hub steht auf "brain", aber peppermint/ai-brain-bridge ist nicht installiert. '
-                .'Es wird NICHTS gespiegelt — wer die Meldungen in den anderen Produkten erwartet, wartet vergebens.'
+                'notifications.hub steht auf "brain", aber die Bruecke ist hier nicht eingerichtet. '
+                .'Es geht KEIN Signal hinaus — wer den Push aus diesem System erwartet, wartet vergebens.'
             );
         }
 

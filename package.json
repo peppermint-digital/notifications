@@ -1,6 +1,6 @@
 {
     "name": "@peppermint-digital/notifications",
-    "version": "0.19.0",
+    "version": "0.20.0",
     "description": "Benachrichtigungs-Oberflaeche zum gleichnamigen PHP-Paket: die Posteingangs-Ansicht, die Glocke und die Zuordnung von Symbol und Farbe \u2014 damit sie in jedem Produkt gleich aussehen.",
     "license": "MIT",
     "type": "module",

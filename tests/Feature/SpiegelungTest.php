@@ -18,7 +18,8 @@ use Peppermint\Notifications\Types\TypeRegistry;
  * Die Spiegelung: dieselbe Meldung in allen Produkten.
  *
  * Geprüft wird beides — was hinausgeht und was hereinkommt. Die Brücke
- * selbst (`peppermint/ai-brain-bridge`) ist hier nicht installiert; sie ist
+ * selbst (`peppermint/ai-brain-bridge`) ist hier zwar installiert — seit dem
+ * 19.10.2026 ist sie Pflicht —, aber nicht EINGERICHTET; sie ist
  * eine *suggest*-Abhängigkeit. Genau deshalb muss der Fall „Brücke fehlt"
  * mitgeprüft werden: Er ist im Paket-Test der Normalfall und in einem
  * falsch konfigurierten Produkt der teure.
@@ -88,7 +89,7 @@ describe('Senden', function () {
         // Angemeldet: versucht es — und meldet, dass die Bruecke fehlt.
         $melde('mention');
         Log::shouldHaveReceived('warning')
-            ->withArgs(fn (string $m): bool => str_contains($m, 'ai-brain-bridge'));
+            ->withArgs(fn (string $m): bool => str_contains($m, 'nicht eingerichtet'));
     });
 
     it('meldet eine Meldung ohne Empfaenger-Adresse nicht weiter, sondern protokolliert sie', function (): void {
@@ -136,7 +137,7 @@ describe('Senden', function () {
         );
 
         Log::shouldHaveReceived('warning')
-            ->withArgs(fn (string $m): bool => str_contains($m, 'ai-brain-bridge'));
+            ->withArgs(fn (string $m): bool => str_contains($m, 'nicht eingerichtet'));
     });
 
     it('meldet die fehlende Bruecke EINMAL, nicht je Meldung', function (): void {
@@ -163,7 +164,7 @@ describe('Senden', function () {
         }
 
         Log::shouldHaveReceived('warning')
-            ->withArgs(fn (string $m): bool => str_contains($m, 'ai-brain-bridge'))
+            ->withArgs(fn (string $m): bool => str_contains($m, 'nicht eingerichtet'))
             ->once();
     });
 });

@@ -2,64 +2,35 @@
 
 namespace Peppermint\Notifications\Feed;
 
+use Peppermint\AiBrainBridge\Verbund\Huelle;
+
 /**
- * Die Zeilen aus einer Gateway-Antwort schaelen.
+ * Die Antwort von `list-notifications-tool` auspacken.
  *
- * MCP-Antworten tragen ihren Inhalt je nach Fassung direkt, in `content`
- * oder in `structuredContent`. Alle Formen abzufangen ist nicht
- * Unentschlossenheit, sondern die Lehre aus dem Kalender: Eine neue
- * SDK-Fassung aendert die Huelle, nicht den Inhalt — und ein Aufrufer, der
- * nur eine kennt, bekommt beim Update still eine leere Liste.
+ * Die Huellen-Logik steht in {@see Huelle} und wird mit dem Inbox-Paket
+ * geteilt: Sie ist fuer jedes Werkzeug am Komm-Layer dieselbe, und eine
+ * zweite Kopie veraltet still — wer die Huelle nicht findet, bekommt eine
+ * LEERE Liste und keinen Fehler.
  */
-class Auspacken
+final class Auspacken
 {
     /**
-     * Zeilen UND die Zahl der Ungelesenen, wie das System sie selbst zaehlt.
-     *
      * @param  array<string, mixed>  $antwort
      * @return array{items: array<int, array<string, mixed>>, unread_count: int}
      */
     public static function antwort(array $antwort): array
     {
-        $huelle = self::huelle($antwort);
+        $huelle = Huelle::schaelen($antwort);
 
         return [
-            'items' => array_values(array_filter($huelle['items'] ?? [], 'is_array')),
+            'items' => Huelle::zeilen($huelle),
             'unread_count' => (int) ($huelle['unread_count'] ?? 0),
         ];
     }
 
-    /**
-     * @param  array<string, mixed>  $antwort
-     * @return array<int, array<string, mixed>>
-     */
+    /** @return array<int, array<string, mixed>> */
     public static function zeilen(array $antwort): array
     {
         return self::antwort($antwort)['items'];
-    }
-
-    /**
-     * Die Huelle finden, in der der Inhalt steckt.
-     *
-     * @param  array<string, mixed>  $antwort
-     * @return array<string, mixed>
-     */
-    private static function huelle(array $antwort): array
-    {
-        $huellen = [
-            $antwort,
-            $antwort['data'] ?? null,
-            $antwort['structuredContent'] ?? null,
-            $antwort['content'] ?? null,
-            $antwort['result'] ?? null,
-        ];
-
-        foreach ($huellen as $huelle) {
-            if (is_array($huelle) && isset($huelle['items']) && is_array($huelle['items'])) {
-                return $huelle;
-            }
-        }
-
-        return [];
     }
 }
