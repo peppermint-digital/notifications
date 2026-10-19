@@ -180,9 +180,29 @@ export function usePush(routes?: PushRoutes): UsePushResult {
             const registrierung = await navigator.serviceWorker.register(adressen.worker);
             await navigator.serviceWorker.ready;
 
+            const neuerSchluessel = schluesselBytes(schluessel);
+
+            // Ein altes Abo mit einem ANDEREN Schluessel steht im Weg.
+            //
+            // Der Browser laesst pro Registrierung genau ein Abo zu. Liegt
+            // dort noch eines, das mit einem anderen `applicationServerKey`
+            // entstanden ist, wirft `subscribe()` einen `InvalidStateError`
+            // — und zwar jedes Mal wieder. Der Mensch drueckt auf den
+            // Knopf, bekommt einen Fehler, und nichts aendert sich.
+            //
+            // Genau diesen Zustand haben alle, die vor dem Umzug des
+            // VAPID-Schluessels zum Brain abonniert hatten (#7993). Das war
+            // als „einmal neu abonnieren" eingeplant — nur konnte die
+            // Oberflaeche es nicht, weil sie das alte Abo nicht wegraeumte.
+            const vorhandenes = await registrierung.pushManager.getSubscription();
+
+            if (vorhandenes !== null && !gleicherSchluessel(vorhandenes, neuerSchluessel)) {
+                await vorhandenes.unsubscribe();
+            }
+
             const abo = await registrierung.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: schluesselBytes(schluessel),
+                applicationServerKey: neuerSchluessel,
             });
 
             const gespeichert = await fetch(adressen.subscribe, {
@@ -210,7 +230,10 @@ export function usePush(routes?: PushRoutes): UsePushResult {
 
             setStatus('abonniert');
         } catch (fehler) {
-            setError('Das Abonnieren hat nicht geklappt.');
+            // Den Grund nennen, nicht nur das Scheitern. „Hat nicht
+            // geklappt" schickt den Menschen zum Support und den Support
+            // in die Entwicklerkonsole.
+            setError(grundFuer(fehler));
             console.error('[Push] subscribe fehlgeschlagen:', fehler);
             await pruefen();
         } finally {
@@ -260,4 +283,49 @@ export function usePush(routes?: PushRoutes): UsePushResult {
     }, [adressen.subscribe, busy]);
 
     return { status, busy, error, subscribe, unsubscribe };
+}
+
+/**
+ * Steckt im vorhandenen Abo derselbe Schluessel wie der, den wir setzen wollen?
+ *
+ * `options.applicationServerKey` gibt der Browser als ArrayBuffer zurueck —
+ * byteweise vergleichen ist der einzige verlaessliche Weg. Kennt ein Browser
+ * `options` nicht, gilt das Abo als fremd: lieber einmal zu viel neu
+ * abonnieren als dauerhaft an einem alten haengen.
+ */
+export function gleicherSchluessel(abo: PushSubscription, schluessel: ArrayBuffer): boolean {
+    const vorhanden = abo.options?.applicationServerKey;
+
+    if (!vorhanden) {
+        return false;
+    }
+
+    const a = new Uint8Array(vorhanden);
+    const b = new Uint8Array(schluessel);
+
+    return a.length === b.length && a.every((wert, i) => wert === b[i]);
+}
+
+/**
+ * Ein Satz, der sagt, woran es lag.
+ *
+ * Die Namen kommen vom Browser und sind stabil; der Text daneben ist fuer
+ * jemanden geschrieben, der gerade nur einen Knopf gedrueckt hat.
+ */
+export function grundFuer(fehler: unknown): string {
+    const name = fehler instanceof Error ? fehler.name : '';
+
+    if (name === 'NotAllowedError') {
+        return 'Dieser Browser hat Benachrichtigungen für die Seite gesperrt. In den Seiteneinstellungen des Browsers wieder erlauben.';
+    }
+
+    if (name === 'InvalidStateError') {
+        return 'Auf diesem Gerät liegt noch ein altes Abo. Lade die Seite neu und versuche es noch einmal — beim zweiten Versuch wird es ersetzt.';
+    }
+
+    if (name === 'NotSupportedError' || name === 'AbortError') {
+        return 'Dieser Browser kann keine Push-Nachrichten empfangen. Auf dem iPhone muss die Seite dafür zum Home-Bildschirm hinzugefügt werden.';
+    }
+
+    return 'Das Abonnieren hat nicht geklappt. Die Entwicklerkonsole nennt den Grund.';
 }
