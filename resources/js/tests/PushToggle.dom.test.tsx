@@ -18,10 +18,28 @@ function browserMit({
         endpoint: 'https://push.test/abc',
         toJSON: () => ({ endpoint: 'https://push.test/abc', keys: { p256dh: 'P', auth: 'A' } }),
         unsubscribe: vi.fn(async () => true),
+        // Seit v0.22 prueft der Haken, ob das Abo zum AKTUELLEN Schluessel
+        // passt — ein Abo mit fremdem Schluessel ist tot und wird als
+        // „nicht abonniert" gezeigt, damit der Knopf es ersetzen kann.
+        options: { applicationServerKey: new TextEncoder().encode('ABCDEFG').buffer },
     }));
 
+    // Ein vorhandenes Abo traegt per Vorgabe den AKTUELLEN Schluessel und
+    // kann sich serialisieren — beides braucht der Haken seit v0.22, um
+    // ein totes Abo von einem gueltigen zu unterscheiden und ein
+    // gueltiges beim Server nachzumelden. Ein Test, der ein ALTES Abo
+    // nachstellen will, gibt eigene `options` mit.
+    const vorhandenes = abo === null
+        ? null
+        : {
+            toJSON: () => ({ endpoint: 'https://push.test/abc', keys: { p256dh: 'P', auth: 'A' } }),
+            options: { applicationServerKey: new TextEncoder().encode('ABCDEFG').buffer },
+            unsubscribe: vi.fn(async () => true),
+            ...(abo as Record<string, unknown>),
+        };
+
     const registrierung = {
-        pushManager: { getSubscription: vi.fn(async () => abo), subscribe },
+        pushManager: { getSubscription: vi.fn(async () => vorhandenes), subscribe },
     };
 
     if (kannPush) {
@@ -69,15 +87,50 @@ describe('Zustand aus dem Browser', () => {
         await waitFor(() => expect(screen.getByText('Dieses Gerät bekommt kein Push')).toBeDefined());
     });
 
-    it('zeigt „bekommt Push", wenn der Browser ein Abo hat', async () => {
-        // Der Zustand kommt aus dem Browser, nicht vom Server. Ein
-        // Server-Flag stuende weiter auf „abonniert", nachdem jemand die
+    it('zeigt „bekommt Push", wenn der Browser ein Abo mit dem aktuellen Schluessel hat', async () => {
+        // Der Zustand kommt aus dem Browser, nicht aus einem Server-Flag:
+        // Ein Flag stuende weiter auf „abonniert", nachdem jemand die
         // Website-Daten geloescht hat.
         browserMit({ abo: { endpoint: 'https://push.test/abc' } });
 
         render(<PushToggle />);
 
         await waitFor(() => expect(screen.getByText('Dieses Gerät bekommt Push')).toBeDefined());
+    });
+
+    it('zeigt „kein Push", wenn das Abo einen ALTEN Schluessel traegt', async () => {
+        // Der Fall, der einen Kollegen blockierte: Der Browser hielt ein
+        // Abo vom alten VAPID-Schluessel, der Server kannte es nicht, und
+        // der Schalter stand trotzdem auf gruen. Ein gruener Schalter
+        // ohne Wirkung ist schlimmer als ein grauer — man merkt nicht,
+        // dass man nichts bekommt.
+        browserMit({
+            abo: {
+                endpoint: 'https://push.test/alt',
+                options: { applicationServerKey: new TextEncoder().encode('ALTERKEY').buffer },
+            },
+        });
+
+        render(<PushToggle />);
+
+        await waitFor(() => expect(screen.getByText('Dieses Gerät bekommt kein Push')).toBeDefined());
+    });
+
+    it('meldet ein gueltiges Abo beim Server nach', async () => {
+        // Loescht jemand drueben die Zeile (oder ging sie beim Umzug
+        // verloren), weiss der Server nichts von einem Abo, das im
+        // Browser laengst steht. Dann kommt nie etwas an, und niemand
+        // sieht warum. Der Haken meldet es stillschweigend nach;
+        // `updateOrCreate` drueben macht das folgenlos.
+        browserMit({ abo: { endpoint: 'https://push.test/abc' } });
+
+        render(<PushToggle />);
+
+        await waitFor(() => {
+            const rufe = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
+
+            expect(rufe.some(([url, init]) => String(url).includes('subscribe') && init?.method === 'POST')).toBe(true);
+        });
     });
 
     it('sagt es, wenn der Browser gar kein Push kann', async () => {

@@ -132,13 +132,52 @@ export function usePush(routes?: PushRoutes): UsePushResult {
             const registrierung = await navigator.serviceWorker.getRegistration();
             const abo = await registrierung?.pushManager.getSubscription();
 
-            setStatus(abo ? 'abonniert' : 'nicht-abonniert');
+            if (!abo) {
+                setStatus('nicht-abonniert');
+
+                return;
+            }
+
+            // Ein Abo im Browser heisst noch nicht, dass es ankommt.
+            //
+            // Bis v0.22 fragte diese Pruefung nur den Browser. Lag dort
+            // ein Abo, von dem der SERVER nichts weiss — weil es mit dem
+            // alten Schluessel entstand oder die Zeile geloescht wurde —,
+            // stand der Schalter auf „abonniert" und es kam trotzdem nie
+            // etwas an. Ein gruener Schalter ohne Wirkung ist schlimmer
+            // als ein grauer: Man merkt nicht, dass man nichts bekommt.
+            const schluessel = await oeffentlicherSchluessel(adressen.publicKey);
+
+            if (schluessel === null || !gleicherSchluessel(abo, schluesselBytes(schluessel))) {
+                // Fremder Schluessel: Das Abo ist tot. Als „nicht
+                // abonniert" zeigen, damit der Knopf es ersetzen kann —
+                // genau das tut `subscribe()` inzwischen.
+                setStatus('nicht-abonniert');
+
+                return;
+            }
+
+            // Richtiger Schluessel: dem Server nachmelden, falls er die
+            // Zeile nicht (mehr) hat. `updateOrCreate` drueben macht das
+            // folgenlos, wenn er sie schon kennt.
+            await fetch(adressen.subscribe, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...csrfHeaders(),
+                },
+                body: JSON.stringify(abo.toJSON()),
+            });
+
+            setStatus('abonniert');
         } catch {
             // Eine Registrierung, die sich nicht lesen lässt, heißt für die
             // Oberfläche dasselbe wie keine: Es lässt sich abonnieren.
             setStatus('nicht-abonniert');
         }
-    }, []);
+    }, [adressen.publicKey, adressen.subscribe]);
 
     useEffect(() => {
         void pruefen();
@@ -161,11 +200,7 @@ export function usePush(routes?: PushRoutes): UsePushResult {
                 return;
             }
 
-            const antwort = await fetch(adressen.publicKey, {
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            });
-
-            const schluessel = antwort.ok ? ((await antwort.json()).public_key ?? null) : null;
+            const schluessel = await oeffentlicherSchluessel(adressen.publicKey);
 
             if (!schluessel) {
                 // Ohne Schlüssel gibt es kein Abo. Das ist kein Fehler des
@@ -328,4 +363,22 @@ export function grundFuer(fehler: unknown): string {
     }
 
     return 'Das Abonnieren hat nicht geklappt. Die Entwicklerkonsole nennt den Grund.';
+}
+
+/**
+ * Den oeffentlichen VAPID-Schluessel holen — oder `null`.
+ *
+ * Von zwei Stellen gebraucht: beim Abonnieren und beim Pruefen, ob ein
+ * vorhandenes Abo noch zum aktuellen Schluessel passt.
+ */
+async function oeffentlicherSchluessel(adresse: string): Promise<string | null> {
+    try {
+        const antwort = await fetch(adresse, {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+
+        return antwort.ok ? ((await antwort.json()).public_key ?? null) : null;
+    } catch {
+        return null;
+    }
 }
