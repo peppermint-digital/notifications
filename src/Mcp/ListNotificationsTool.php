@@ -8,7 +8,7 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
 use Peppermint\Notifications\Feed\NotificationFeed;
 use Peppermint\Notifications\Feed\SourceLabels;
-use Peppermint\Notifications\Support\Bruecke;
+use Peppermint\Notifications\Mcp\Concerns\FindetHandelndePerson;
 
 /**
  * Die eigenen Meldungen herausgeben — damit andere sie LESEN statt kopieren.
@@ -33,6 +33,8 @@ use Peppermint\Notifications\Support\Bruecke;
  */
 class ListNotificationsTool extends Tool
 {
+    use FindetHandelndePerson;
+
     protected string $description = 'List the notifications of the acting person in this system. Read-only; the caller merges them with its own.';
 
     public function handle(Request $request, NotificationFeed $feed): Response
@@ -64,27 +66,5 @@ class ListNotificationsTool extends Tool
             'limit' => $schema->integer()
                 ->description('How many at most. Default 100, maximum 500.'),
         ];
-    }
-
-    /**
-     * Die handelnde Person — oder `null`.
-     *
-     * Die Bruecke setzt sie aus der Kopfzeile des Aufrufs; ohne Bruecke ist
-     * es die angemeldete Person. Beides abzufragen kostet nichts und macht
-     * das Werkzeug auch ohne Hub benutzbar.
-     */
-    private function handelnde(): mixed
-    {
-        if (Bruecke::verfuegbar()) {
-            $adresse = (Bruecke::FACADE)::actingUserEmail();
-
-            if (is_string($adresse) && trim($adresse) !== '') {
-                $modell = (string) config('notifications.user_model');
-
-                return $modell::query()->where('email', $adresse)->first();
-            }
-        }
-
-        return auth()->user();
     }
 }
