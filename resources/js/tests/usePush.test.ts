@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { gleicherSchluessel, grundFuer } from '../src/usePush';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { gleicherSchluessel, grundFuer, oeffentlicherSchluessel } from '../src/usePush';
 
 function abo(schluessel: ArrayBuffer | null): PushSubscription {
     return { options: schluessel === null ? {} : { applicationServerKey: schluessel } } as unknown as PushSubscription;
@@ -61,5 +61,60 @@ describe('Der Grund steht im Fehlertext', () => {
         // und den Support in die Entwicklerkonsole — ohne zu sagen, dass
         // sie dort etwas findet.
         expect(grundFuer(new Error('irgendwas'))).toContain('konsole');
+    });
+});
+
+/**
+ * Drei Faelle, nicht zwei (Bug #1068).
+ *
+ * Vorher gab diese Funktion `string | null` zurueck, und damit war „der
+ * Server kennt keinen Schluessel" nicht von „du bist nicht mehr angemeldet"
+ * zu unterscheiden. Die Oberflaeche zeigte fuer beides denselben Satz — und
+ * der nannte die falsche Ursache.
+ */
+describe('Den Schluessel holen', () => {
+    const mitAntwort = (antwort: Response) => {
+        vi.stubGlobal('fetch', vi.fn(async () => antwort));
+    };
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('gibt den Schluessel heraus, wenn er da ist', async () => {
+        mitAntwort(new Response(JSON.stringify({ public_key: 'ABC' }), { status: 200 }));
+
+        await expect(oeffentlicherSchluessel('/x')).resolves.toEqual({ art: 'da', schluessel: 'ABC' });
+    });
+
+    it('nennt 401 als fehlende Anmeldung', async () => {
+        mitAntwort(new Response(JSON.stringify({ message: 'Unauthenticated.' }), { status: 401 }));
+
+        await expect(oeffentlicherSchluessel('/x')).resolves.toEqual({ art: 'nicht-angemeldet' });
+    });
+
+    it('nennt auch 419 als fehlende Anmeldung — der abgelaufene CSRF-Token', async () => {
+        // Fuer den Menschen dasselbe: neu anmelden.
+        mitAntwort(new Response('', { status: 419 }));
+
+        await expect(oeffentlicherSchluessel('/x')).resolves.toEqual({ art: 'nicht-angemeldet' });
+    });
+
+    it('bleibt bei einem Serverfehler bei „keiner"', async () => {
+        mitAntwort(new Response('', { status: 503 }));
+
+        await expect(oeffentlicherSchluessel('/x')).resolves.toEqual({ art: 'keiner' });
+    });
+
+    it('behandelt eine Antwort ohne Schluessel als „keiner"', async () => {
+        mitAntwort(new Response(JSON.stringify({ public_key: null }), { status: 200 }));
+
+        await expect(oeffentlicherSchluessel('/x')).resolves.toEqual({ art: 'keiner' });
+    });
+
+    it('behandelt ein totes Netz als „keiner" — ueber die Anmeldung ist dann nichts bekannt', async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
+
+        await expect(oeffentlicherSchluessel('/x')).resolves.toEqual({ art: 'keiner' });
     });
 });

@@ -187,6 +187,81 @@ describe('Abonnieren', () => {
         await waitFor(() => expect(screen.getByText('Push ist hier gerade nicht eingerichtet')).toBeDefined());
     });
 
+    /*
+     * Bug #1068: Zwei Menschen meldeten, Push sei kaputt — die Maske sagte
+     * „Es kommt kein Schluessel von AI Brain". In Wahrheit war ihre Sitzung
+     * abgelaufen. Nachgemessen: Alle vier Schluessel-Endpunkte antworten
+     * ohne Sitzung mit 401, und jede nicht-ok-Antwort wurde zu „kein
+     * Schluessel".
+     */
+    it('nennt die abgelaufene Anmeldung, statt den Schluessel zu beschuldigen', async () => {
+        /*
+         * Mit VORHANDENEM Abo — genau Chris' Lage: Er war abonniert, also
+         * holt die Pruefung beim Laden den Schluessel, um das Abo gegen ihn
+         * zu halten. Ohne Abo wird er beim Laden gar nicht geholt.
+         *
+         * Vor dem Fix endete das hier in „nicht abonniert": Der Schalter
+         * behauptete, dieses Geraet bekomme kein Push — obwohl es eines
+         * hatte. Und ein Klick machte daraus „kein Schluessel von AI Brain".
+         */
+        browserMit({ abo: {} });
+        vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ message: 'Unauthenticated.' }), { status: 401 })));
+
+        render(<PushToggle />);
+        await waitFor(() => expect(screen.getByText('Deine Anmeldung ist abgelaufen')).toBeDefined());
+
+        // Und ausdruecklich NICHT der alte Satz: Er nannte eine Ursache, an
+        // der niemand etwas aendern kann.
+        expect(screen.queryByText('Push ist hier gerade nicht eingerichtet')).toBeNull();
+    });
+
+    it('nennt die abgelaufene Anmeldung auch beim Klick auf Einschalten', async () => {
+        browserMit({ abo: null });
+        let ersterAufruf = true;
+        vi.stubGlobal('fetch', vi.fn(async () => {
+            // Beim Pruefen noch angemeldet, beim Klick nicht mehr — genau
+            // der Fall, in dem jemand die Seite eine Weile offen hatte.
+            if (ersterAufruf) {
+                ersterAufruf = false;
+
+                return new Response(JSON.stringify({ public_key: 'QUJDREVGRw' }), { status: 200 });
+            }
+
+            return new Response(JSON.stringify({ message: 'Unauthenticated.' }), { status: 401 });
+        }));
+
+        render(<PushToggle />);
+        await waitFor(() => screen.getByText('Einschalten'));
+
+        fireEvent.click(screen.getByText('Einschalten'));
+
+        await waitFor(() => expect(screen.getByText('Deine Anmeldung ist abgelaufen')).toBeDefined());
+    });
+
+    it('nennt die abgelaufene Anmeldung, wenn erst das Hinterlegen daran scheitert', async () => {
+        // „Bitte spaeter noch einmal versuchen" ist bei einer abgelaufenen
+        // Sitzung ein Rat, der nie funktioniert — spaeter ist sie genauso
+        // abgelaufen.
+        browserMit({ abo: null });
+
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async (url: string) =>
+                String(url).includes('public-key')
+                    ? new Response(JSON.stringify({ public_key: 'QUJDREVGRw' }), { status: 200 })
+                    : new Response(JSON.stringify({ message: 'Unauthenticated.' }), { status: 401 }),
+            ),
+        );
+
+        render(<PushToggle />);
+        await waitFor(() => screen.getByText('Einschalten'));
+
+        fireEvent.click(screen.getByText('Einschalten'));
+
+        await waitFor(() => expect(screen.getByText('Deine Anmeldung ist abgelaufen')).toBeDefined());
+        expect(screen.queryByText(/konnte nicht hinterlegt werden/)).toBeNull();
+    });
+
     it('nimmt das Abo zurueck, wenn der Server es nicht annimmt', async () => {
         // Sonst stuende im Browser eine Erlaubnis, an die nie jemand etwas
         // schickt — und ein zweiter Versuch faende ein scheinbar fertiges

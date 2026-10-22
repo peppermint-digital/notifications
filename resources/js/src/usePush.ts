@@ -32,6 +32,20 @@ export type PushStatus =
     | 'abgelehnt'
     /** Es gibt keinen Schlüssel — niemand kann hier abonnieren. */
     | 'kein-schluessel'
+    /**
+     * Die Anmeldung ist weg — der Server hat mit 401 geantwortet.
+     *
+     * Eigener Zustand und nicht `kein-schluessel`. Genau diese Verwechslung
+     * war Bug #1068: Jede nicht-ok-Antwort wurde zu „Es kommt kein Schlüssel
+     * von AI Brain". Zwei Menschen meldeten daraufhin, Push sei kaputt —
+     * während in Wahrheit nur ihre Sitzung abgelaufen war. Die Maske
+     * beschuldigte den Hub, und an ihrer Auskunft war nicht ablesbar, was zu
+     * tun ist.
+     *
+     * Nachgemessen am 22.10.2026: Alle vier Schlüssel-Endpunkte antworten
+     * ohne Sitzung mit 401 — in AI Brain, Manager, CRM und Verwaltung.
+     */
+    | 'nicht-angemeldet'
     | 'abonniert'
     | 'nicht-abonniert';
 
@@ -146,9 +160,17 @@ export function usePush(routes?: PushRoutes): UsePushResult {
             // stand der Schalter auf „abonniert" und es kam trotzdem nie
             // etwas an. Ein gruener Schalter ohne Wirkung ist schlimmer
             // als ein grauer: Man merkt nicht, dass man nichts bekommt.
-            const schluessel = await oeffentlicherSchluessel(adressen.publicKey);
+            const ergebnis = await oeffentlicherSchluessel(adressen.publicKey);
 
-            if (schluessel === null || !gleicherSchluessel(abo, schluesselBytes(schluessel))) {
+            if (ergebnis.art === 'nicht-angemeldet') {
+                // Ohne Anmeldung ist ueber das Abo gar nichts zu sagen —
+                // auch nicht, dass es „nicht abonniert" waere. Siehe #1068.
+                setStatus('nicht-angemeldet');
+
+                return;
+            }
+
+            if (ergebnis.art === 'keiner' || !gleicherSchluessel(abo, schluesselBytes(ergebnis.schluessel))) {
                 // Fremder Schluessel: Das Abo ist tot. Als „nicht
                 // abonniert" zeigen, damit der Knopf es ersetzen kann —
                 // genau das tut `subscribe()` inzwischen.
@@ -200,9 +222,18 @@ export function usePush(routes?: PushRoutes): UsePushResult {
                 return;
             }
 
-            const schluessel = await oeffentlicherSchluessel(adressen.publicKey);
+            const ergebnis = await oeffentlicherSchluessel(adressen.publicKey);
 
-            if (!schluessel) {
+            if (ergebnis.art === 'nicht-angemeldet') {
+                // DIE Stelle aus Bug #1068. Vorher landete das hier unter
+                // „kein Schlüssel" — und die Maske erklärte einem Menschen,
+                // dessen Sitzung abgelaufen war, das Brain liefere nichts.
+                setStatus('nicht-angemeldet');
+
+                return;
+            }
+
+            if (ergebnis.art === 'keiner') {
                 // Ohne Schlüssel gibt es kein Abo. Das ist kein Fehler des
                 // Menschen und soll auch nicht so aussehen.
                 setStatus('kein-schluessel');
@@ -215,7 +246,7 @@ export function usePush(routes?: PushRoutes): UsePushResult {
             const registrierung = await navigator.serviceWorker.register(adressen.worker);
             await navigator.serviceWorker.ready;
 
-            const neuerSchluessel = schluesselBytes(schluessel);
+            const neuerSchluessel = schluesselBytes(ergebnis.schluessel);
 
             // Ein altes Abo mit einem ANDEREN Schluessel steht im Weg.
             //
@@ -256,6 +287,16 @@ export function usePush(routes?: PushRoutes): UsePushResult {
                 // Erlaubnis, an die nie jemand etwas schickt — und ein
                 // zweiter Versuch fände ein scheinbar fertiges Abo vor.
                 await abo.unsubscribe();
+
+                // Auch hier die Anmeldung getrennt benennen (#1068): „Bitte
+                // später noch einmal versuchen" ist bei einer abgelaufenen
+                // Sitzung ein Rat, der nie funktioniert — später ist sie
+                // genauso abgelaufen.
+                if (gespeichert.status === 401 || gespeichert.status === 419) {
+                    setStatus('nicht-angemeldet');
+
+                    return;
+                }
 
                 setStatus('nicht-abonniert');
                 setError('Das Abo konnte nicht hinterlegt werden. Bitte später noch einmal versuchen.');
@@ -366,19 +407,52 @@ export function grundFuer(fehler: unknown): string {
 }
 
 /**
- * Den oeffentlichen VAPID-Schluessel holen — oder `null`.
+ * Was beim Holen des Schluessels herauskam.
+ *
+ * DREI Faelle, nicht zwei — das ist der Kern von Bug #1068. Vorher gab diese
+ * Funktion nur `string | null` zurueck, und damit war „der Server kennt
+ * keinen Schluessel" nicht von „du bist nicht mehr angemeldet" zu
+ * unterscheiden. Die Oberflaeche zeigte fuer beides denselben Satz, und der
+ * nannte die falsche Ursache.
+ */
+export type SchluesselErgebnis =
+    | { art: 'da'; schluessel: string }
+    | { art: 'nicht-angemeldet' }
+    | { art: 'keiner' };
+
+/**
+ * Den oeffentlichen VAPID-Schluessel holen.
  *
  * Von zwei Stellen gebraucht: beim Abonnieren und beim Pruefen, ob ein
  * vorhandenes Abo noch zum aktuellen Schluessel passt.
+ *
+ * 401 und 419 bekommen einen eigenen Fall: Das erste ist die abgelaufene
+ * Sitzung, das zweite der abgelaufene CSRF-Token — fuer den Menschen
+ * dasselbe („melde dich neu an"), und beides hat nichts mit dem Schluessel
+ * zu tun.
  */
-async function oeffentlicherSchluessel(adresse: string): Promise<string | null> {
+export async function oeffentlicherSchluessel(adresse: string): Promise<SchluesselErgebnis> {
     try {
         const antwort = await fetch(adresse, {
             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         });
 
-        return antwort.ok ? ((await antwort.json()).public_key ?? null) : null;
+        if (antwort.status === 401 || antwort.status === 419) {
+            return { art: 'nicht-angemeldet' };
+        }
+
+        if (!antwort.ok) {
+            return { art: 'keiner' };
+        }
+
+        const schluessel = (await antwort.json()).public_key ?? null;
+
+        return typeof schluessel === 'string' && schluessel !== ''
+            ? { art: 'da', schluessel }
+            : { art: 'keiner' };
     } catch {
-        return null;
+        // Netz weg, DNS kaputt, Seite offline: Hier ist „keiner" richtig —
+        // wir wissen nichts ueber die Anmeldung.
+        return { art: 'keiner' };
     }
 }

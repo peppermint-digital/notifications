@@ -48,6 +48,22 @@ export function PushToggle({ routes, className }: PushToggleProps) {
         );
     }
 
+    /*
+     * Die abgelaufene Sitzung steht VOR „kein Schlüssel" — sie war bis zum
+     * 22.10.2026 in jenem Kasten mit drin (Bug #1068) und hat zwei Menschen
+     * glauben lassen, das Brain liefere keinen Schlüssel. Der Satz nannte
+     * eine Ursache, an der sie nichts ändern konnten, und verschwieg die,
+     * an der sie alles ändern konnten.
+     */
+    if (status === 'nicht-angemeldet') {
+        return (
+            <Kasten className={className} ton="warnung" symbol={ShieldAlert} titel="Deine Anmeldung ist abgelaufen">
+                Deshalb lässt sich hier gerade nichts einstellen — mit Push oder dem Schlüssel hat es nichts zu tun.
+                Seite neu laden, neu anmelden, dann greift der Schalter wieder.
+            </Kasten>
+        );
+    }
+
     if (status === 'kein-schluessel') {
         return (
             <Kasten className={className} ton="warnung" symbol={ShieldAlert} titel="Push ist hier gerade nicht eingerichtet">
