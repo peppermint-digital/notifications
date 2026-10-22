@@ -2,7 +2,7 @@ import { ArrowUpRight, Bell } from 'lucide-react';
 import { cn } from './ui/utils';
 
 /**
- * „Die Einstellungen wohnen jetzt woanders."
+ * „Benachrichtigungen wohnen jetzt woanders."
  *
  * ## Warum es diese Komponente gibt
  *
@@ -15,6 +15,20 @@ import { cn } from './ui/utils';
  * Einstellung sucht, sucht sie dort, wo er sie kennt. Ein Menüpunkt, der
  * verschwindet, hinterlässt jemanden, der klickt und nichts findet — und
  * drei Klicks ins Leere sind schlimmer als einer zum Ziel.
+ *
+ * ## Seit dem 22.10.2026 gilt das auch für den Geräte-Schalter
+ *
+ * Zuerst blieb der {@link PushToggle} in den Produkten stehen, mit der
+ * Begründung, er sei keine Einstellung, sondern eine Erlaubnis für DIESES
+ * Gerät. Das stimmt — und war trotzdem falsch, denn es machte das Einschalten
+ * zu einer zweiten Stelle, und die ist nachweislich auseinandergelaufen: Der
+ * Manager hatte ein eigenes VAPID-Paar, Browser abonnierten also mit dem
+ * einen Schlüssel, während der Versand mit dem anderen signierte (#8488).
+ * Niemand sah das, denn beide Seiten meldeten Erfolg.
+ *
+ * Deshalb nennt der Satz hier BEIDES. Ein Hinweis, der nur die Matrix
+ * erwähnt, lässt jemanden den Einschalter suchen, den es hier nicht mehr
+ * gibt — und das ist genau der Zustand, aus dem #1068 drei Tage lang bestand.
  *
  * ## Was hier NICHT passiert
  *
@@ -53,8 +67,12 @@ export function NotificationSettingsMoved({
                         <p className="font-medium">Benachrichtigungen werden in AI Brain eingestellt</p>
                         <p className="text-sm text-muted-foreground">
                             Dort stehen die Arten {wessen} zusammen mit denen der anderen Systeme — eine
-                            Stelle statt vier. Gespeichert wird weiterhin hier; nur die Maske ist
-                            umgezogen.
+                            Stelle statt vier.
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Auch <strong>dieses Gerät</strong> wird dort freigeschaltet, nicht hier. Ein
+                            Push-Abo gehört immer der Adresse, auf der es entsteht — und es soll nur noch
+                            eine geben, die danach fragt.
                         </p>
                     </div>
 
