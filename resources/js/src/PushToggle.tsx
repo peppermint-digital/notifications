@@ -39,11 +39,45 @@ export function PushToggle({ routes, className }: PushToggleProps) {
         );
     }
 
+    /*
+     * Der Kasten nennt jetzt die SCHRITTE, nicht nur die Zuständigkeit.
+     *
+     * Anlass: Volker sass am 22.10.2026 darin fest. Der alte Text sagte
+     * richtig, dass die Erlaubnis dem Browser gehoert — und liess ihn dann
+     * allein. Zwei Dinge fehlten:
+     *
+     * 1. Das NEULADEN. {@see usePush} prueft `Notification.permission` nur
+     *    beim Einhaengen. Wer die Erlaubnis im Browser umstellt und
+     *    zurueckkommt, sieht denselben Kasten und haelt den Fix fuer
+     *    wirkungslos.
+     * 2. Dass unser SCHALTER dagegen nichts kann. Die naheliegende Reaktion
+     *    ist „aus und wieder an" — und bei `denied` zeigt der Browser gar
+     *    keine Abfrage mehr, es passiert also nichts.
+     *
+     * Und wie man ueberhaupt hineingeraet: Chrome sperrt eine Herkunft von
+     * selbst, wenn Anfragen mehrfach scheitern oder weggeklickt werden. Genau
+     * das hat unser eigener Fehler (#1068) ausgeloest — die Leute haben
+     * tagelang auf einen Schalter geklickt, der nicht konnte.
+     */
     if (status === 'abgelehnt') {
         return (
-            <Kasten className={className} ton="warnung" symbol={ShieldAlert} titel="Benachrichtigungen sind für diese Seite blockiert">
-                Das lässt sich hier nicht aufheben — die Erlaubnis gehört dem Browser. Sie steht in den
-                Seiteneinstellungen, meist hinter dem Schloss-Symbol neben der Adresse.
+            <Kasten className={className} ton="warnung" symbol={ShieldAlert} titel="Der Browser blockiert Benachrichtigungen für diese Seite">
+                <>
+                    Unser Schalter kann das nicht aufheben — solange die Sperre steht, fragt der Browser gar nicht
+                    mehr. So kommst du heraus:
+                    <ol className="mt-2 ml-4 list-decimal space-y-1">
+                        <li>Auf das Schloss-Symbol links in der Adresszeile klicken.</li>
+                        <li>Bei „Benachrichtigungen" auf <strong>Zulassen</strong> stellen oder die Berechtigung zurücksetzen.</li>
+                        <li>
+                            <strong>Diese Seite neu laden</strong> — ohne das bleibt dieser Hinweis stehen, auch wenn
+                            die Sperre schon weg ist.
+                        </li>
+                    </ol>
+                    <p className="mt-2">
+                        Der Browser sperrt eine Seite auch von selbst, wenn die Anfrage mehrmals scheitert oder
+                        weggeklickt wird — das muss nichts sein, was du bewusst entschieden hast.
+                    </p>
+                </>
             </Kasten>
         );
     }
@@ -141,7 +175,13 @@ function Kasten({ titel, children, symbol: Symbol, ton, className }: KastenProps
             />
             <div className="text-sm">
                 <p className="font-medium">{titel}</p>
-                <p className="mt-1 text-muted-foreground">{children}</p>
+                {/* Ein `div` und kein `p`: Seit der gesperrten Erlaubnis
+                    stehen hier auch eine Liste und mehrere Absaetze, und ein
+                    Blockelement in einem `p` ist ungueltiges HTML — der
+                    Browser bricht die Verschachtelung dann selbst auf, und
+                    die Abstaende sitzen falsch. Die uebrigen Kaesten geben
+                    nur Text, der sieht hier genauso aus. */}
+                <div className="mt-1 text-muted-foreground">{children}</div>
             </div>
         </div>
     );

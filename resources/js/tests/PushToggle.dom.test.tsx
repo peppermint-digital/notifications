@@ -151,8 +151,45 @@ describe('Zustand aus dem Browser', () => {
         render(<PushToggle />);
 
         await waitFor(() =>
-            expect(screen.getByText('Benachrichtigungen sind für diese Seite blockiert')).toBeDefined(),
+            expect(screen.getByText(/Der Browser blockiert Benachrichtigungen/)).toBeDefined(),
         );
+    });
+
+    it('nennt im gesperrten Zustand die Schritte — samt Neuladen', async () => {
+        /*
+         * Der alte Text sagte richtig, dass die Erlaubnis dem Browser
+         * gehoert, und liess den Menschen dann allein. Volker sass darin
+         * fest; die naheliegende Reaktion war „aus und wieder an", und die
+         * hilft nicht.
+         *
+         * Das NEULADEN ist der Teil, der sonst fehlt: Die Pruefung liest
+         * `Notification.permission` nur beim Einhaengen. Wer die Erlaubnis
+         * umstellt und zurueckkommt, sieht denselben Kasten und haelt den
+         * Fix fuer wirkungslos.
+         */
+        browserMit({ permission: 'denied' });
+
+        render(<PushToggle />);
+
+        await waitFor(() => expect(screen.getByText(/Schloss-Symbol/)).toBeDefined());
+
+        expect(screen.getByText(/neu laden/i)).toBeDefined();
+        // Und der Hinweis, dass die Sperre auch von selbst entsteht — sonst
+        // sucht jemand einen Fehler bei sich, den er nicht gemacht hat.
+        expect(screen.getByText(/von selbst/)).toBeDefined();
+    });
+
+    it('rendert die Liste nicht in einem Absatz', async () => {
+        // Ein Blockelement in einem `p` ist ungueltiges HTML; der Browser
+        // bricht die Verschachtelung dann selbst auf und die Abstaende
+        // sitzen falsch.
+        browserMit({ permission: 'denied' });
+
+        const { container } = render(<PushToggle />);
+
+        await waitFor(() => expect(container.querySelector('ol')).not.toBeNull());
+
+        expect(container.querySelector('p ol')).toBeNull();
     });
 });
 
