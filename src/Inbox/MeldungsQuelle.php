@@ -4,7 +4,9 @@ namespace Peppermint\Notifications\Inbox;
 
 use Illuminate\Database\Eloquent\Model;
 use Peppermint\Inbox\Feed\Eintrag;
-use Peppermint\Inbox\Quellen\InboxQuelle;
+use Peppermint\Inbox\Quellen\AbhakbareQuelle;
+use Peppermint\Inbox\Quellen\ZaehlbareQuelle;
+use Peppermint\Notifications\Feed\NotificationActions;
 use Peppermint\Notifications\Feed\NotificationFeed;
 
 /**
@@ -26,17 +28,67 @@ use Peppermint\Notifications\Feed\NotificationFeed;
  *
  * Eine Quelle liefert ausschliesslich, was in DIESEM System steht. Das
  * Zusammenlegen ist Sache des Sammlers.
+ *
+ * ## Abhaken und Zaehlen (AI Brain #1096)
+ *
+ * Die Inbox weiss nicht, wie eine Meldung gelesen wird — dieses Paket schon.
+ * Deshalb liegt beides hier: {@see AbhakbareQuelle} gibt das Abhaken an
+ * {@see NotificationActions} weiter, {@see ZaehlbareQuelle} nennt den
+ * Bestand.
+ *
+ * Der Bestand ist der Grund, warum es diesen zweiten Vertrag gibt: Am
+ * 26.10.2026 standen 3953 ungelesene Meldungen hinter 50 gezeigten Zeilen,
+ * und nichts erklaerte die Luecke. Wer einzeln abarbeitet, sieht die Zahl
+ * kaum sinken und haelt die Seite fuer kaputt.
  */
-class MeldungsQuelle implements InboxQuelle
+class MeldungsQuelle implements AbhakbareQuelle, ZaehlbareQuelle
 {
     /** Unter welcher Art die Meldungen stehen. */
     public const ART = 'notification';
 
-    public function __construct(private readonly NotificationFeed $feed) {}
+    public function __construct(
+        private readonly NotificationFeed $feed,
+        private readonly NotificationActions $aktionen,
+    ) {}
 
     public function art(): string
     {
         return self::ART;
+    }
+
+    /**
+     * Diese Meldungen dieser Person auf gelesen setzen.
+     *
+     * Nichts Eigenes, nur der Durchgang zu {@see NotificationActions}: Dort
+     * sitzt der Empfaenger-Filter, der die Berechtigung IST, und dort wird
+     * nur Ungelesenes angefasst — sonst setzt ein zweiter Klick den
+     * Lesezeitpunkt neu, und der Verlauf behauptet, die Meldung sei eben
+     * erst gelesen worden.
+     *
+     * Mehrere Kennungen, weil eine Zeile oft mehrere Datensaetze buendelt.
+     * Eine Aktion, die nur einen trifft, laesst die Zeile stehen und den
+     * Zaehler falsch.
+     */
+    public function alsGelesen(Model $person, array $ids): int
+    {
+        return $this->aktionen->markRead($person, $ids);
+    }
+
+    public function allesAlsGelesen(Model $person): int
+    {
+        return $this->aktionen->markAllRead($person);
+    }
+
+    /**
+     * Wie viele ungelesene Meldungen diese Person hier insgesamt hat.
+     *
+     * Der LOKALE Feed, wie bei {@see eintraege()}: Der GesamtFeed holt
+     * selbst bei den anderen Systemen, und die Inbox tut das auch — zusammen
+     * stuende der Bestand auf dem Doppelten.
+     */
+    public function ungelesenGesamt(Model $person): int
+    {
+        return $this->feed->unreadCount($person);
     }
 
     public function eintraege(Model $person, int $grenze): array
