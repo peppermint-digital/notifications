@@ -102,13 +102,32 @@ describe('Der Klick', () => {
 });
 
 describe('Vorlesbarkeit', () => {
-    it('nennt die Zahl auch im Vorlesetext', async () => {
+    it('nennt die Zahl auch im Vorlesetext — und WAS sie zaehlt', async () => {
+        /*
+         * „in allen Systemen" ist nicht Hoeflichkeit (AI Brain #1152): Die
+         * Zahl ist der Bestand ueber alle Arten und Systeme, die Reiter auf
+         * der Seite dahinter zeigen die Liste. Am 29.10.2026 stand 4623 am
+         * Symbol gegen Reiter mit 9/29/50/112/50, und der erste Eindruck
+         * war „das kann nicht stimmen".
+         */
         mitZahl(3);
 
         render(<InboxButton pollMs={0} />);
 
         await waitFor(() =>
-            expect(screen.getByLabelText('Posteingang — 3 ungelesen')).toBeDefined(),
+            expect(
+                screen.getByLabelText('Posteingang — 3 ungelesen in allen Systemen'),
+            ).toBeDefined(),
         );
+    });
+
+    it('nennt ohne Zahl nur den Namen', async () => {
+        // „0 ungelesen in allen Systemen" waere umstaendlich fuer die
+        // Aussage „nichts da".
+        mitZahl(0);
+
+        render(<InboxButton pollMs={0} />);
+
+        await waitFor(() => expect(screen.getByLabelText('Posteingang')).toBeDefined());
     });
 });

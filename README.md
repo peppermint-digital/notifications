@@ -290,6 +290,17 @@ seine Meldungsseite zurück:
 
 ### Wohin ein Klick geht: `oeffneVerweis`
 
+> **Eine Zeile mit `source` gehört nie in den Router der aufnehmenden
+> Anwendung.** `oeffneVerweis` entscheidet am Ziel, und das ist richtig — aber
+> nur, solange das Ziel stimmt. Deshalb für eine fremde Zeile kein Router:
+> `oeffneVerweis(item.link, item.source ? undefined : (ziel) => router.visit(ziel))`.
+>
+> Am 29.10.2026 gab der Manager noch `/emails?account=3` heraus (er hatte das
+> Paket noch nicht). In AI Brain sah die Zeile dadurch aus wie eine eigene,
+> der Router forderte `brain…/emails?account=3` an, bekam keine
+> Inertia-Antwort — und Inertia tat **sichtbar nichts**. Zeigefinger, Klick
+> ins Leere. Ein falsches Ziel kann man melden, ein stummes nicht.
+
 ```tsx
 import { oeffneVerweis } from '@peppermint-digital/notifications';
 

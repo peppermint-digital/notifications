@@ -123,7 +123,20 @@ export function InboxButton({
     // Zahl ist ab da ohnehin keine Hilfe mehr.
     const text = anzahl > 99 ? '99+' : String(anzahl);
 
-    const beschriftung = anzahl > 0 ? `${label} — ${anzahl} ungelesen` : label;
+    /*
+     * „in allen Systemen" gehört dazu (AI Brain #1152).
+     *
+     * Die Zahl ist der Bestand über alle Arten und alle Systeme, die Reiter
+     * auf der Seite dahinter zeigen dagegen, was in der Liste steht — je Art
+     * und System auf 50 gedeckelt. Beides ist richtig und beantwortet eine
+     * andere Frage; ohne diesen Zusatz las es sich als Widerspruch.
+     *
+     * Gemessen am 29.10.2026: 4623 am Symbol gegen Reiter mit 9/29/50/112/50.
+     * Der erste Eindruck war „das kann nicht stimmen" — und das ist genau
+     * der Eindruck, aus dem #1096 entstanden ist.
+     */
+    const beschriftung =
+        anzahl > 0 ? `${label} — ${anzahl} ungelesen in allen Systemen` : label;
 
     return (
         <a

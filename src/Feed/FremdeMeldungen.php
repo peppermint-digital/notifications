@@ -3,6 +3,7 @@
 namespace Peppermint\Notifications\Feed;
 
 use Illuminate\Support\Facades\Log;
+use Peppermint\Inbox\Feed\Verweise;
 
 /**
  * Die Meldungen der ANDEREN Systeme — geholt, nicht gehalten.
@@ -80,6 +81,27 @@ class FremdeMeldungen
                     // der Ansicht unter „von hier".
                     $zeile['source'] = $anbieter['key'] ?? $slug;
                     $zeile['source_label'] = $anbieter['label'] ?? $slug;
+
+                    /*
+                     * Ein noch relativer Verweis wird HIER absolut (#1151).
+                     *
+                     * Dieselbe Regel wie im Inbox-Paket, und aus demselben
+                     * Grund: Die Gegenseite macht es seit notifications
+                     * v0.29.0 selbst, aber beim Ausrollen hat sie die
+                     * Fassung immer irgendwo noch nicht. Ein `/tasks/5` aus
+                     * dem Manager meint hier etwas anderes oder nichts.
+                     *
+                     * {@see Verweise} laesst einen absoluten Verweis
+                     * unberuehrt — die Zeile kostet nichts, sobald alle
+                     * nachgezogen sind. Ohne Adresse des Anbieters bleibt
+                     * der Verweis relativ; eine geratene waere schlechter.
+                     */
+                    if (isset($zeile['link'])) {
+                        $zeile['link'] = Verweise::einzeln(
+                            (string) $zeile['link'],
+                            isset($anbieter['url']) ? (string) $anbieter['url'] : null,
+                        );
+                    }
 
                     $zeilen[] = $zeile;
                 }

@@ -22,8 +22,6 @@ class BridgeRemoteSource implements RemoteSource
      * der groesste Ausfall von allen, denn der Hub fuehrt die Mehrzahl der
      * Meldungen. Deshalb steht er hier fest in der Liste.
      */
-    private const HUB = ['slug' => self::HUB_SLUG, 'key' => self::HUB_SLUG, 'label' => 'AI Brain'];
-
     private const HUB_SLUG = 'ai-brain';
 
     public function anbieter(): array
@@ -36,7 +34,36 @@ class BridgeRemoteSource implements RemoteSource
 
         // Der Hub zuerst: Faellt eines der Produkte aus, soll wenigstens
         // die Hauptquelle dastehen.
-        return array_merge([self::HUB], (self::BRUECKE)::providers(FremdeMeldungen::CAPABILITY));
+        return array_merge([$this->hub()], (self::BRUECKE)::providers(FremdeMeldungen::CAPABILITY));
+    }
+
+    /**
+     * Die Nabe als Anbieterzeile — von Hand, weil sie in keinem
+     * Verzeichnis steht (siehe Klassenkopf).
+     *
+     * ## Warum `url` dazugehoert (#1151)
+     *
+     * Die uebrigen Anbieter bringen ihre Adresse aus dem Verzeichnis mit,
+     * und {@see FremdeMeldungen} macht damit einen noch relativen Verweis
+     * absolut. Fehlte sie hier, wuerde ausgerechnet der groesste
+     * Beitraeger weiter relative Verweise liefern — und `/bugs/1122`
+     * meint in diesem Produkt nichts.
+     *
+     * Die Adresse steht in der eigenen Konfiguration: Es ist die, mit der
+     * dieses Produkt AI Brain ohnehin anspricht.
+     *
+     * @return array{slug: string, key: string, label: string, url: string|null}
+     */
+    private function hub(): array
+    {
+        $adresse = trim((string) config('ai-brain-bridge.base_url'));
+
+        return [
+            'slug' => self::HUB_SLUG,
+            'key' => self::HUB_SLUG,
+            'label' => 'AI Brain',
+            'url' => $adresse === '' ? null : $adresse,
+        ];
     }
 
     public function holen(string $slug, string $adresse, int $grenze): array
