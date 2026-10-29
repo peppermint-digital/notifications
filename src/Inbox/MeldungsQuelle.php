@@ -5,6 +5,7 @@ namespace Peppermint\Notifications\Inbox;
 use Illuminate\Database\Eloquent\Model;
 use Peppermint\Inbox\Feed\Eintrag;
 use Peppermint\Inbox\Quellen\AbhakbareQuelle;
+use Peppermint\Inbox\Quellen\LoeschbareQuelle;
 use Peppermint\Inbox\Quellen\ZaehlbareQuelle;
 use Peppermint\Notifications\Feed\NotificationActions;
 use Peppermint\Notifications\Feed\NotificationFeed;
@@ -40,8 +41,24 @@ use Peppermint\Notifications\Feed\NotificationFeed;
  * 26.10.2026 standen 3953 ungelesene Meldungen hinter 50 gezeigten Zeilen,
  * und nichts erklaerte die Luecke. Wer einzeln abarbeitet, sieht die Zahl
  * kaum sinken und haelt die Seite fuer kaputt.
+ *
+ * ## Loeschen (AI Brain #9069)
+ *
+ * Und sie ist LOESCHBAR — als einzige Art im Posteingang. Eine Meldung
+ * existiert nur, um gesehen zu werden; danach darf sie weg. Bei einer
+ * Aufgabe oder einem Beleg waere dasselbe entweder wirkungslos oder ein
+ * Datenverlust im Fremdsystem, und deshalb setzen deren Quellen
+ * {@see LoeschbareQuelle} nicht um. Bastians Vorgabe dazu: „Aufgaben und
+ * Belege nie."
+ *
+ * Das ist die Voraussetzung dafuer, dass die alte, produkteigene
+ * Meldungsseite verschwinden kann: Sie war bis zum 29.10.2026 die einzige
+ * Stelle, an der sich Meldungen loeschen liessen.
+ *
+ * Wieder nur ein Durchgang zu {@see NotificationActions} — dort sitzt der
+ * Empfaenger-Filter, der die Berechtigung IST.
  */
-class MeldungsQuelle implements AbhakbareQuelle, ZaehlbareQuelle
+class MeldungsQuelle implements AbhakbareQuelle, LoeschbareQuelle, ZaehlbareQuelle
 {
     /** Unter welcher Art die Meldungen stehen. */
     public const ART = 'notification';
@@ -77,6 +94,36 @@ class MeldungsQuelle implements AbhakbareQuelle, ZaehlbareQuelle
     public function allesAlsGelesen(Model $person): int
     {
         return $this->aktionen->markAllRead($person);
+    }
+
+    /**
+     * Diese Meldungen dieser Person loeschen (#9069).
+     *
+     * Nichts Eigenes, nur der Durchgang zu {@see NotificationActions}: Dort
+     * sitzt der Empfaenger-Filter, der die Berechtigung IST, und dort wird
+     * die Hoechstzahl je Aufruf gekappt.
+     *
+     * Mehrere Kennungen, weil eine Zeile oft mehrere Datensaetze buendelt.
+     * Eine Loeschung, die nur einen trifft, laesst die Zeile stehen — und
+     * beim naechsten Laden sieht es aus, als haette der Knopf nicht
+     * funktioniert.
+     */
+    public function loeschen(Model $person, array $ids): int
+    {
+        return $this->aktionen->delete($person, $ids);
+    }
+
+    /**
+     * Alle Meldungen dieser Person — auch die gelesenen.
+     *
+     * Das ist der Punkt, an dem der Knopf „Alle meine Benachrichtigungen
+     * loeschen" seine Rueckfrage verdient: Hier verschwindet der ganze
+     * Bestand, nicht nur das Ungelesene. Die Oberflaeche nennt deshalb die
+     * Zahl, bevor sie fragt.
+     */
+    public function allesLoeschen(Model $person): int
+    {
+        return $this->aktionen->deleteAll($person);
     }
 
     /**

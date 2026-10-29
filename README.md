@@ -324,6 +324,28 @@ Und es war dreimal verschieden geschrieben:
   Adresse tragen, forderte sie damit eine fremde Seite als Seite *dieser*
   Anwendung an.
 
+### Die Meldungsseite ist auf dem Weg hinaus (AI Brain #9069)
+
+`NotificationPage` und `NotificationList` sind seit dem 29.10.2026 als
+veraltet markiert. Der gemeinsame Posteingang (`InboxPage` aus
+`peppermint/inbox`) kann seit `inbox` v0.7.0 alles, was sie können — Löschen
+einzeln und in Gänze, Filter nach Lesestand und Herkunft, Neu laden,
+Gruppierung in „Neu"/„Früher" — und dazu das, was sie nie konnten: alle Arten
+aus allen vier Systemen an einem Ort.
+
+Bastians Vorgabe: „Es soll alles über die neue Maske laufen und die alte
+Version komplett verschwinden."
+
+Was dafür in diesem Paket dazukam: `MeldungsQuelle` setzt jetzt auch
+`LoeschbareQuelle` um — ein Durchgang zu `NotificationActions::delete()` und
+`deleteAll()`, die es längst gab. **Sie ist die einzige löschbare Art** im
+Posteingang: Eine Meldung existiert nur, um gesehen zu werden, danach darf sie
+weg. Bei einer Aufgabe oder einem Beleg wäre dasselbe wirkungslos oder ein
+Datenverlust im Fremdsystem.
+
+Wer an der alten Seite etwas ergänzen will, ergänzt es im Inbox-Paket: Was
+hier dazukommt, müsste beim Abbau noch einmal umziehen.
+
 ### Was das Produkt beisteuert
 
 Alles, was nur dort Sinn ergibt, kommt als Funktion herein statt als Sonderfall

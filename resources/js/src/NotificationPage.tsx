@@ -9,6 +9,16 @@ import { cn } from './ui/utils';
 import { useNotifications, type NotificationRoutes } from './useNotifications';
 
 /**
+ * @deprecated Seit AI Brain #9069 — der gemeinsame Posteingang kann alles,
+ * was diese Seite kann (`InboxPage` aus `peppermint/inbox`), und mehr. Diese
+ * Komponente verschwindet, sobald die produkteigenen Meldungsseiten
+ * abgebaut sind; bis dahin bleibt sie unveraendert in Betrieb.
+ *
+ * Wer hier etwas ergaenzen will, ergaenzt es dort: Was hier dazukommt,
+ * muesste beim Abbau noch einmal umziehen.
+ */
+
+/**
  * Der Posteingang — eine Seite, in jedem Produkt dieselbe.
  *
  * ## Warum es diese Komponente zusätzlich zur Liste gibt

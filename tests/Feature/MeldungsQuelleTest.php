@@ -1,8 +1,10 @@
 <?php
 
 use Peppermint\Inbox\Quellen\AbhakbareQuelle;
+use Peppermint\Inbox\Quellen\LoeschbareQuelle;
 use Peppermint\Inbox\Quellen\ZaehlbareQuelle;
 use Peppermint\Notifications\Delivery\Notifier;
+use Peppermint\Notifications\Feed\NotificationActions;
 use Peppermint\Notifications\Inbox\MeldungsQuelle;
 use Peppermint\Notifications\Models\Notification;
 use Peppermint\Notifications\Tests\Support\User;
@@ -12,7 +14,7 @@ use Peppermint\Notifications\Tests\Support\User;
  *
  * Die Inbox weiss nicht, wie eine Meldung gelesen wird; dieses Paket schon.
  * Deshalb liegt der Uebersetzer hier, und seit AI Brain #1096 auch das
- * Abhaken und das Zaehlen.
+ * Abhaken und das Zaehlen — seit #9069 zusaetzlich das Loeschen.
  */
 beforeEach(function (): void {
     $this->notifier = app(Notifier::class);
@@ -95,4 +97,66 @@ it('zaehlt eine abgehakte Meldung nicht mehr mit', function (): void {
     $this->quelle->alsGelesen($this->ich, array_slice($ids, 0, 2));
 
     expect($this->quelle->ungelesenGesamt($this->ich))->toBe(3);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Loeschen (AI Brain #9069)
+|--------------------------------------------------------------------------
+|
+| Die Voraussetzung dafuer, dass die alte Meldungsseite verschwinden kann:
+| Sie war bis zum 29.10.2026 die einzige Stelle, an der sich Meldungen
+| loeschen liessen.
+|
+*/
+
+it('meldet sich als loeschbar an', function (): void {
+    // Die Oberflaeche raet nicht — sie zeichnet den Knopf nur dort, wo der
+    // Vertrag steht. Aufgaben und Belege setzen ihn bewusst NICHT um.
+    expect(app(MeldungsQuelle::class))->toBeInstanceOf(LoeschbareQuelle::class);
+});
+
+it('loescht mehrere Meldungen auf einmal', function (): void {
+    // Mehrere Kennungen, weil eine Zeile oft mehrere Datensaetze buendelt.
+    $eine = app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: 'Eine');
+    $zwei = app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: 'Zwei');
+
+    $geloescht = app(MeldungsQuelle::class)->loeschen($this->ich, [$eine->getKey(), $zwei->getKey()]);
+
+    expect($geloescht)->toBe(2)
+        ->and(Notification::query()->count())->toBe(0);
+});
+
+it('fasst die Meldung eines anderen Menschen nicht an, auch mit ihrer Kennung', function (): void {
+    // Die Einschraenkung auf die handelnde Person IST die Rechtepruefung.
+    // Eine fremde Kennung laeuft ins Leere statt den Aufruf zu sprengen.
+    $fremd = app(Notifier::class)->send(to: $this->andere, type: 'task.assigned', title: 'Fremd');
+
+    $geloescht = app(MeldungsQuelle::class)->loeschen($this->ich, [$fremd->getKey()]);
+
+    expect($geloescht)->toBe(0)
+        ->and(Notification::query()->count())->toBe(1);
+});
+
+it('loescht mit „alles" AUCH das Gelesene', function (): void {
+    // Der Knopf heisst „Alle meine Benachrichtigungen loeschen", nicht
+    // „alle ungelesenen". Genau deshalb steht davor eine Rueckfrage mit
+    // der Zahl.
+    $gelesen = app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: 'Gelesen');
+    app(NotificationActions::class)->markRead($this->ich, [$gelesen->getKey()]);
+    app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: 'Offen');
+
+    $geloescht = app(MeldungsQuelle::class)->allesLoeschen($this->ich);
+
+    expect($geloescht)->toBe(2)
+        ->and(Notification::query()->count())->toBe(0);
+});
+
+it('laesst mit „alles" die Meldungen anderer Menschen stehen', function (): void {
+    app(Notifier::class)->send(to: $this->andere, type: 'task.assigned', title: 'Fremd');
+    app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: 'Meins');
+
+    app(MeldungsQuelle::class)->allesLoeschen($this->ich);
+
+    expect(Notification::query()->count())->toBe(1);
 });
