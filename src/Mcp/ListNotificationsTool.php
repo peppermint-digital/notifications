@@ -6,6 +6,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
+use Peppermint\Inbox\Feed\Verweise;
 use Peppermint\Notifications\Feed\NotificationFeed;
 use Peppermint\Notifications\Feed\SourceLabels;
 use Peppermint\Notifications\Mcp\Concerns\FindetHandelndePerson;
@@ -30,6 +31,18 @@ use Peppermint\Notifications\Mcp\Concerns\FindetHandelndePerson;
  * nicht Bequemlichkeit: Eine Benachrichtigung gehoert immer genau einem
  * Menschen, und ein Aufruf ohne Person koennte nur „alle" meinen. Das waere
  * hier ein Datenleck ueber Systemgrenzen hinweg.
+ *
+ * ## Hier werden die Verweise absolut (AI Brain #1151)
+ *
+ * Beim SPIEGELN war das immer richtig — {@see MirrorPayload::fromNotification()}
+ * setzt die Adresse des Absenders davor, und der Docblock dort sagt auch
+ * warum: „Ein `/tasks/5` zeigt im CRM auf eine Seite, die es dort nicht
+ * gibt." Auf diesem Weg fehlte dieselbe Regel.
+ *
+ * Und das ist der Weg, der heute benutzt wird: Seit die Produkte die Nabe
+ * FRAGEN statt Kopien zu halten, reist eine Meldung von AI Brain
+ * ausschliesslich hier durch. Am 29.10.2026 in Produktion gemessen — die
+ * Zahlen stehen in {@see Verweise}.
  */
 class ListNotificationsTool extends Tool
 {
@@ -56,7 +69,12 @@ class ListNotificationsTool extends Tool
             // die Zeilen zuordnen kann, ohne es aus der Antwort zu raten.
             'source' => SourceLabels::local(),
             'unread_count' => $antwort['unread_count'] ?? 0,
-            'items' => array_slice($antwort['items'] ?? [], 0, $grenze),
+            // Mit absoluten Verweisen, weil diese Liste das System
+            // verlaesst (#1151) — siehe Klassenkopf.
+            'items' => Verweise::absolut(
+                array_slice($antwort['items'] ?? [], 0, $grenze),
+                (string) config('app.url'),
+            ),
         ]);
     }
 

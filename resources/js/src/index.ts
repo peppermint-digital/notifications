@@ -24,6 +24,7 @@ export {
     notificationTextClass,
 } from './icons';
 export type { NotificationFeed, NotificationItem, NotificationType } from './types';
+export { oeffneVerweis } from './verweis';
 export {
     normalizeFeed,
     useNotifications,

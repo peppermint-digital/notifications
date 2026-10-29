@@ -264,6 +264,55 @@ die Glocke kannte 15 der 39 Arten.
 />
 ```
 
+### Posteingangs-Knopf für die Kopfzeile
+
+```tsx
+<InboxButton onNavigate={(ziel) => router.visit(ziel)} />
+```
+
+Ein Symbol, ein Abzeichen mit der Zahl, ein Klick auf eine Seite — keine
+Klappe. Die Vorgaben zeigen auf den **gemeinsamen** Posteingang:
+`/posteingang` und `GET /posteingang/ungelesen` aus `peppermint/inbox`.
+
+Bis zum 29.10.2026 waren es `/notifications/inbox` und
+`/api/inbox/unread-count` — die produkteigene Meldungsseite und die Zahl der
+ungelesenen Meldungen *dieses* Systems. Richtig, solange es die gemeinsame
+Seite nicht gab; danach führte der Briefkasten auf einen Ausschnitt, und die
+Zahl sprach über etwas anderes als die Seite, die sie aufmacht (AI Brain
+#1152).
+
+Ein Produkt, das **ohne** `peppermint/inbox` läuft, setzt beide Werte auf
+seine Meldungsseite zurück:
+
+```tsx
+<InboxButton href="/notifications/inbox" countUrl="/api/inbox/unread-count" />
+```
+
+### Wohin ein Klick geht: `oeffneVerweis`
+
+```tsx
+import { oeffneVerweis } from '@peppermint-digital/notifications';
+
+onOpen={(item) => oeffneVerweis(item.link, (ziel) => router.visit(ziel))}
+```
+
+Entschieden wird am **Ziel**, nicht an der Herkunft: Ein anderer Ursprung
+(oder ein anderes Schema wie `mailto:`) geht an den Browser, alles Hiesige in
+den Router — auch wenn es absolut geschrieben ist.
+
+Das gehört ins Paket, weil es in jedem Produkt dieselben sechs Zeilen sind.
+Und es war dreimal verschieden geschrieben:
+
+- Die Meldungsseiten prüfen `/^https?:\/\//`. Richtig, aber in vier Dateien
+  abgeschrieben — und ein absoluter Verweis auf den **eigenen** Host verlässt
+  damit unnötig die Anwendung.
+- Die Posteingangs-Seiten entscheiden an `source`. Trifft heute zu und ist
+  trotzdem der falsche Maßstab: Ob ein Klick die Anwendung verlässt, steht in
+  der Adresse.
+- Die Glocke nahm immer `router.visit` — seit fremde Zeilen eine absolute
+  Adresse tragen, forderte sie damit eine fremde Seite als Seite *dieser*
+  Anwendung an.
+
 ### Was das Produkt beisteuert
 
 Alles, was nur dort Sinn ergibt, kommt als Funktion herein statt als Sonderfall

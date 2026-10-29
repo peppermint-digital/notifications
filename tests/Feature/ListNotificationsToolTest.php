@@ -89,3 +89,66 @@ function werkzeugAufrufen(array $argumente = []): array
 
     return is_array($daten) ? $daten : [];
 }
+
+/*
+|--------------------------------------------------------------------------
+| Der Verweis traegt die eigene Adresse mit (AI Brain #1151)
+|--------------------------------------------------------------------------
+|
+| Diese Antwort verlaesst das System. Ein `/tasks/5` ist zu Hause richtig
+| und nur dort — drueben loest der Browser ihn gegen den falschen Host auf.
+|
+| Beim SPIEGELN war das immer richtig (MirrorPayload). Auf diesem Weg
+| fehlte es, und genau dieser Weg wird seit dem Umbau auf „fragen statt
+| kopieren" benutzt.
+|
+*/
+
+it('gibt den Verweis absolut heraus, weil diese Liste das System verlaesst', function (): void {
+    config()->set('app.url', 'https://brain.proxy.peppermint-digital.com');
+
+    app(Notifier::class)->send(
+        to: $this->ich,
+        type: 'task.assigned',
+        title: 'Bug behoben',
+        link: '/bugs/1122',
+    );
+
+    $this->actingAs($this->ich);
+
+    // Gemessen am 29.10.2026: Relativ herausgegeben antwortete genau dieser
+    // Pfad auf vw, crm und pm mit 404.
+    expect(werkzeugAufrufen()['items'][0]['link'])
+        ->toBe('https://brain.proxy.peppermint-digital.com/bugs/1122');
+});
+
+it('laesst einen schon absoluten Verweis in Ruhe', function (): void {
+    // Der Manager baut seine Verweise seit immer selbst absolut. Ein
+    // zweites Praefix davor machte aus einem richtigen einen kaputten — und
+    // zwar nur in den Zeilen, die vorher funktionierten.
+    config()->set('app.url', 'https://brain.proxy.peppermint-digital.com');
+
+    app(Notifier::class)->send(
+        to: $this->ich,
+        type: 'task.assigned',
+        title: 'Aufgabe im Manager',
+        link: 'https://pm.peppermint-digital.com/tasks/42',
+    );
+
+    $this->actingAs($this->ich);
+
+    expect(werkzeugAufrufen()['items'][0]['link'])
+        ->toBe('https://pm.peppermint-digital.com/tasks/42');
+});
+
+it('laesst eine Meldung ohne Verweis ohne Verweis', function (): void {
+    // Kein Ziel zu haben ist eine Aussage, kein fehlender Wert. Ein
+    // erfundenes Ziel waere schlechter als keines.
+    config()->set('app.url', 'https://brain.proxy.peppermint-digital.com');
+
+    app(Notifier::class)->send(to: $this->ich, type: 'task.assigned', title: 'Nur ein Hinweis');
+
+    $this->actingAs($this->ich);
+
+    expect(werkzeugAufrufen()['items'][0]['link'])->toBeNull();
+});

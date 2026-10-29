@@ -52,10 +52,29 @@ describe('Das Abzeichen', () => {
 });
 
 describe('Der Klick', () => {
-    it('fuehrt auf die Posteingangs-Seite', async () => {
+    it('fuehrt auf den GEMEINSAMEN Posteingang', async () => {
+        /*
+         * Bis zum 29.10.2026 war die Vorgabe `/notifications/inbox` — die
+         * produkteigene Meldungsseite. Richtig, solange es die gemeinsame
+         * Seite nicht gab; seit es sie gibt, fuehrte der Briefkasten auf
+         * einen Ausschnitt (AI Brain #1152).
+         */
         render(<InboxButton pollMs={0} />);
 
-        await waitFor(() => expect(screen.getByRole('link').getAttribute('href')).toBe('/notifications/inbox'));
+        await waitFor(() => expect(screen.getByRole('link').getAttribute('href')).toBe('/posteingang'));
+    });
+
+    it('holt die Zahl von der GLOBALEN Abfrage, nicht von der Meldungs-Zahl', async () => {
+        // Sonst spricht das Abzeichen ueber die Meldungen dieses einen
+        // Systems, waehrend der Klick vier Systeme aufmacht.
+        const holen = vi.fn(async () => new Response(JSON.stringify({ unread_count: 168 })));
+        vi.stubGlobal('fetch', holen);
+
+        render(<InboxButton pollMs={0} />);
+
+        await waitFor(() => expect(screen.getByText('99+')).toBeDefined());
+
+        expect(holen).toHaveBeenCalledWith('/posteingang/ungelesen', expect.anything());
     });
 
     it('geht ueber den Router des Produkts, wenn einer da ist', async () => {
@@ -67,7 +86,7 @@ describe('Der Klick', () => {
 
         fireEvent.click(screen.getByRole('link'), { button: 0 });
 
-        expect(navigieren).toHaveBeenCalledWith('/notifications/inbox');
+        expect(navigieren).toHaveBeenCalledWith('/posteingang');
     });
 
     it('ueberlaesst den Klick mit gedrueckter Taste dem Browser', async () => {

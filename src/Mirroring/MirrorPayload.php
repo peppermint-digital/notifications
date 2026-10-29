@@ -2,6 +2,7 @@
 
 namespace Peppermint\Notifications\Mirroring;
 
+use Peppermint\Inbox\Feed\Verweise;
 use Peppermint\Notifications\Models\Notification;
 
 /**
@@ -143,17 +144,27 @@ final class MirrorPayload
         return ($this->origin ?? 'unbekannt').':'.($this->originId ?? md5($this->title.$this->recipientEmail));
     }
 
+    /**
+     * Die Regel liegt im Inbox-Paket, nicht hier (AI Brain #1151).
+     *
+     * Hier stand sie bis zum 29.10.2026 selbst — und zwar richtig, siehe
+     * den Absatz „Der Verweis muss absolut sein" oben. Dasselbe fehlte
+     * aber auf dem ZWEITEN Weg, auf dem eine Meldung ein System verlaesst:
+     * {@see \Peppermint\Notifications\Mcp\ListNotificationsTool}, also
+     * dem, der seit dem Umbau auf „fragen statt kopieren" ueberhaupt
+     * benutzt wird.
+     *
+     * Zwei Stellen mit derselben Regel waere genau die Dopplung, aus der
+     * das hier entstanden ist. Deshalb delegiert diese Methode an
+     * {@see Verweise::einzeln()} und bleibt als benannte Stelle stehen, an
+     * der die Begruendung fuer den Spiegel-Weg zu lesen ist.
+     *
+     * Was dabei dazukommt: `mailto:`, `tel:` und `//host/pfad` bleiben
+     * jetzt unberuehrt. Vorher bekamen sie ein Praefix — selten, aber
+     * immer falsch.
+     */
     private static function absolut(?string $link, ?string $baseUrl): ?string
     {
-        if ($link === null || $link === '' || $baseUrl === null) {
-            return $link;
-        }
-
-        // Schon absolut? Dann in Ruhe lassen.
-        if (str_starts_with($link, 'http://') || str_starts_with($link, 'https://')) {
-            return $link;
-        }
-
-        return rtrim($baseUrl, '/').'/'.ltrim($link, '/');
+        return Verweise::einzeln($link, $baseUrl);
     }
 }

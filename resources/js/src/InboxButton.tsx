@@ -26,15 +26,32 @@ import { cn } from './ui/utils';
  *
  * ## Woher die Zahl kommt
  *
- * Aus einer eigenen, billigen Abfrage (`unreadCount`) und nicht aus dem
- * Feed: Der Knopf hängt an JEDER Seite, die Liste nur dort, wo jemand
- * hinsieht. Wer hier den ganzen Feed lädt, bezahlt ihn auf jeder Seite.
+ * Aus einer eigenen, billigen Abfrage und nicht aus dem Feed: Der Knopf
+ * hängt an JEDER Seite, die Liste nur dort, wo jemand hinsieht. Wer hier
+ * den ganzen Feed lädt, bezahlt ihn auf jeder Seite.
+ *
+ * ## Die Vorgaben zeigen auf den GEMEINSAMEN Posteingang (AI Brain #1152)
+ *
+ * Hier stand bis zum 29.10.2026 `/notifications/inbox` und
+ * `/api/inbox/unread-count` — die produkteigene Meldungsseite und die Zahl
+ * der ungelesenen Meldungen DIESES Systems. Das war richtig, als es die
+ * gemeinsame Seite noch nicht gab.
+ *
+ * Seit es sie gibt, war es zweimal falsch: Der Klick führte auf einen
+ * Ausschnitt, und die Zahl sprach über etwas anderes als die Seite, die
+ * sie aufmacht — dort stehen auch Aufgaben, Belege und imkr-Zeilen aus vier
+ * Systemen. Beides zeigt jetzt auf den gemeinsamen Posteingang und auf
+ * `GET /posteingang/ungelesen` aus `peppermint/inbox`.
+ *
+ * Ein Produkt, das OHNE das Inbox-Paket läuft, setzt beide Werte selbst auf
+ * seine Meldungsseite zurück. Die Vorgabe ist der Normalfall, nicht die
+ * einzige Möglichkeit.
  */
 export interface InboxButtonProps {
-    /** Wohin der Klick führt. Vorgabe: `/notifications/inbox` */
+    /** Wohin der Klick führt. Vorgabe: `/posteingang` */
     href?: string;
 
-    /** Woher die Zahl kommt. Vorgabe: `/api/inbox/unread-count` */
+    /** Woher die Zahl kommt. Vorgabe: `/posteingang/ungelesen` */
     countUrl?: string;
 
     /** Vorbefüllung aus Server-Props — spart die erste Abfrage. */
@@ -55,8 +72,8 @@ export interface InboxButtonProps {
     className?: string;
 }
 
-const VORGABE_HREF = '/notifications/inbox';
-const VORGABE_ZAEHLER = '/api/inbox/unread-count';
+const VORGABE_HREF = '/posteingang';
+const VORGABE_ZAEHLER = '/posteingang/ungelesen';
 
 export function InboxButton({
     href = VORGABE_HREF,
