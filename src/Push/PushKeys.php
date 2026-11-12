@@ -32,6 +32,43 @@ use Illuminate\Support\Facades\Log;
  *
  * Ohne Hub haelt das Produkt sein eigenes Paar, und hier kommt der lokale
  * Schluessel zurueck. Derselbe Code, andere Quelle.
+ *
+ * ## Das `Http::` in {@see vomHub()} bleibt — und zwar aus einem ANDEREN
+ * ## Grund als bei den uebrigen direkten Aufrufen
+ *
+ * Wer den Komm-Layer aufraeumt, kommt hier vorbei und sieht einen direkten
+ * Netzaufruf. Der Satz steht deshalb hier und nicht nur im Wiki: Der Leser
+ * kommt am Code vorbei, nicht am Artikel.
+ *
+ * **Diese Stelle ist NICHT die Aussenwelt.** Sie redet mit der NABE. Wer sie
+ * mit {@see \Peppermint\Mailbox\Jmap\JmapClient} (ein Mailserver) oder mit
+ * `peppermint/calendar` `src/Subscriptions/IcsFeed.php` (fremde ICS-Feeds) in
+ * einen Topf wirft, hat zwei verschiedene Begruendungen zu einer gemacht. Die
+ * drei Lagen des Verbunds:
+ *
+ * | Gegenstelle | Weg |
+ * |---|---|
+ * | ein anderes PRODUKT | `AiBrain::gateway('<vorgang>', …, $slug)` |
+ * | die NABE | `AiBrain::call('<werkzeug>')` — der Nabe-Zweig |
+ * | die AUSSENWELT | direkt |
+ *
+ * Nach dieser Tabelle waere hier der Nabe-Zweig faellig. Er ist es
+ * ABSICHTLICH nicht, und der Grund steht ausfuehrlich an {@see vomHub()}: Ein
+ * oeffentlicher Schluessel ist oeffentlich. `call()` setzt einen
+ * OAuth-Zugang und eine eingerichtete Bruecke voraus — fuer einen Wert, den
+ * der Browser ohnehin zu sehen bekommt.
+ *
+ * **Und die Reihenfolge ist das eigentliche Argument:** Dieser Schluessel
+ * wird gebraucht, BEVOR jemand abonniert hat, und er muss auch dann noch
+ * kommen, wenn die Anmeldung am Hub gerade klemmt — sonst verschwindet der
+ * Abo-Knopf ({@see publicKey()} gibt dann `null`, und die Oberflaeche bietet
+ * gar nicht erst an). Ein Schluesselabruf, der von OAuth abhaengt, macht aus
+ * einem Anmeldeproblem ein stilles Fehlen des Knopfes.
+ *
+ * Deshalb ist das hier eine begruendete AUSNAHME von Regel 2 und kein Rest,
+ * der noch umzustellen waere. Wer sie dennoch umstellt, nimmt den
+ * Rueckfall-Weg mit, den {@see publicKey()} ausdruecklich offenhaelt.
+ * Gemessen und festgehalten am 12.11.2026, Aufgabe #9882.
  */
 class PushKeys
 {
@@ -83,6 +120,11 @@ class PushKeys
      * ohnehin an jeden Browser, der abonniert. Ihn hinter OAuth zu legen
      * hiesse, fuer ein Geheimnis zu sorgen, das keines ist, und dafuer eine
      * Abhaengigkeit mehr in einen Weg zu bauen, der schon genug davon hat.
+     *
+     * Dasselbe Argument ist der Grund, warum hier NICHT `AiBrain::call()`
+     * steht, obwohl die Gegenstelle die Nabe ist. Diese Stelle ist eine
+     * begruendete Ausnahme von Regel 2 des Produkt-Vertrags und kein Rest —
+     * ausfuehrlich im Klassenkopf, Abschnitt zum `Http::` hier.
      */
     private function vomHub(): ?string
     {
