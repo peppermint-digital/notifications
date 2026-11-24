@@ -86,7 +86,7 @@ class PushKeys
      */
     public function publicKey(): ?string
     {
-        if (config('notifications.hub', 'local') !== 'brain') {
+        if (! PushBetrieb::ueberHub()) {
             return $this->lokal();
         }
 

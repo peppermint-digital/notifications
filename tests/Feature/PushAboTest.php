@@ -13,6 +13,12 @@ use Peppermint\Notifications\Tests\Support\User;
  * wie eine laufende Zustellung und keine ist.
  */
 beforeEach(function (): void {
+    // Weiterleiten gibt es nur im Hub-Betrieb. Bis v0.31 lief der Endpunkt
+    // auch unter `local` in die Weiterleitung und meldete dort 503; seit
+    // v0.32 sagt er unter `local` ohne eigenen Push gleich, dass es keinen
+    // gibt (LokalerPushTest).
+    config()->set('notifications.hub', 'brain');
+
     Route::middleware(['web', 'auth'])->group(__DIR__.'/../../routes/push.php');
 
     $this->ich = User::create(['name' => 'Ich', 'email' => 'ich@beispiel.test']);

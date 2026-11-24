@@ -4,6 +4,8 @@ namespace Peppermint\Notifications\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Peppermint\Notifications\Push\PushAbos;
+use Peppermint\Notifications\Push\PushBetrieb;
 use Peppermint\Notifications\Push\PushForwarder;
 
 /**
@@ -22,6 +24,13 @@ use Peppermint\Notifications\Push\PushForwarder;
  * selbst (`pushManager.getSubscription()`), und das ist die einzige Frage,
  * die die Oberflaeche stellt.
  *
+ * ## Seit v0.32: der eigene Betrieb
+ *
+ * Mit `push.driver = local` haelt das Produkt seine Abos selbst und
+ * signiert selbst — dann wird hier gespeichert, und nichts geht an den Hub.
+ * Ohne Push (`none`) antwortet der Endpunkt mit 503 `push_disabled`, statt
+ * ein Abo anzunehmen, das niemand bedient. Siehe {@see PushBetrieb}.
+ *
  * ## Warum ein Fehlschlag am Hub trotzdem „ok" meldet
  *
  * Nein, tut er nicht — und das ist der Unterschied zum Manager. Dort steht
@@ -30,7 +39,10 @@ use Peppermint\Notifications\Push\PushForwarder;
  */
 class PushSubscriptionController
 {
-    public function __construct(private readonly PushForwarder $weiterleitung) {}
+    public function __construct(
+        private readonly PushForwarder $weiterleitung,
+        private readonly PushAbos $abos,
+    ) {}
 
     public function store(Request $request): JsonResponse
     {
@@ -39,6 +51,16 @@ class PushSubscriptionController
             'keys.p256dh' => ['required', 'string', 'max:255'],
             'keys.auth' => ['required', 'string', 'max:255'],
         ]);
+
+        if (PushBetrieb::lokal()) {
+            $this->abos->speichern($request->user(), $geprueft, (string) $request->userAgent());
+
+            return response()->json(['ok' => true]);
+        }
+
+        if (! PushBetrieb::ueberHub()) {
+            return $this->keinPush();
+        }
 
         $angekommen = $this->weiterleitung->subscribed(
             $request->user(),
@@ -66,12 +88,25 @@ class PushSubscriptionController
             'endpoint' => ['required', 'string', 'max:2048'],
         ]);
 
-        $this->weiterleitung->unsubscribed($request->user(), $geprueft['endpoint']);
+        if (PushBetrieb::lokal()) {
+            $this->abos->entfernen($request->user(), $geprueft['endpoint']);
+        } elseif (PushBetrieb::ueberHub()) {
+            $this->weiterleitung->unsubscribed($request->user(), $geprueft['endpoint']);
+        }
 
         // Abmelden meldet immer Erfolg: Der Browser hat sein Abo in jedem
         // Fall schon weggeworfen, bevor er hier anklopft. Ein Fehler hier
         // liesse die Oberflaeche „abonniert" anzeigen, obwohl nichts mehr
         // ankommt — die schlechtere von zwei Unwahrheiten.
         return response()->json(['ok' => true]);
+    }
+
+    private function keinPush(): JsonResponse
+    {
+        return response()->json([
+            'ok' => false,
+            'error' => 'push_disabled',
+            'message' => 'In diesem System ist Push nicht eingerichtet.',
+        ], 503);
     }
 }

@@ -17,8 +17,11 @@ use Peppermint\Notifications\Mirroring\BrainMirror;
 use Peppermint\Notifications\Preferences\PreferenceResolver;
 use Peppermint\Notifications\Push\PushForwarder;
 use Peppermint\Notifications\Bridge\NativeBridge;
+use Peppermint\Notifications\Console\PushSchluesselCommand;
 use Peppermint\Notifications\Console\SammelMailCommand;
 use Peppermint\Notifications\Mail\EmailDelivery;
+use Peppermint\Notifications\Push\PushAbos;
+use Peppermint\Notifications\Push\PushBetrieb;
 use Peppermint\Notifications\Push\PushKeys;
 use Peppermint\Notifications\Types\TypeRegistry;
 
@@ -56,6 +59,7 @@ class NotificationsServiceProvider extends ServiceProvider
         $this->app->singleton(PreferenceResolver::class);
         $this->app->singleton(PushKeys::class);
         $this->app->singleton(PushForwarder::class);
+        $this->app->singleton(PushAbos::class);
         $this->app->singleton(EmailDelivery::class);
         $this->app->singleton(NativeBridge::class);
     }
@@ -90,6 +94,14 @@ class NotificationsServiceProvider extends ServiceProvider
         // ueberhaupt etwas zu speichern haette.
         $this->loadMigrationsFrom(__DIR__.'/../database/preferences-migrations');
 
+        // Die Abo-Tabelle nur im eigenen Push-Betrieb. Ein Produkt, das Push
+        // ueber den Hub laeuft oder gar nicht, bekommt keine Tabelle, die
+        // aussieht wie eine laufende Zustellung — und AI Brain, das seine
+        // eigene hat, keine zweite.
+        if (PushBetrieb::lokal()) {
+            $this->loadMigrationsFrom(__DIR__.'/../database/push-migrations');
+        }
+
         $this->spiegelungVerdrahten();
         $this->mailVerdrahten();
 
@@ -100,7 +112,7 @@ class NotificationsServiceProvider extends ServiceProvider
         ], 'notifications-views');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([SammelMailCommand::class]);
+            $this->commands([SammelMailCommand::class, PushSchluesselCommand::class]);
         }
     }
 

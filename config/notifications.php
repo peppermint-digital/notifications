@@ -283,7 +283,20 @@ return [
     |
     */
     'push' => [
+        /*
+        | `hub`, `local` oder `none` — siehe {@see \Peppermint\Notifications\Push\PushBetrieb}.
+        | Ohne Angabe: `hub` bei `hub = brain`, sonst `none` (Verhalten bis v0.31).
+        | `local` heisst: eigene Abo-Tabelle, eigenes VAPID-Paar, eigener Versand.
+        */
+        'driver' => env('NOTIFICATIONS_PUSH_DRIVER'),
+
         'public_key' => env('VAPID_PUBLIC_KEY'),
+
+        /* Nur im Betrieb `local`. Ein Geheimnis — gehoert in die .env, nie ins Repo. */
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+
+        /* Kontakt fuer den Push-Dienst: `mailto:` oder die Adresse des Produkts. */
+        'subject' => env('VAPID_SUBJECT', env('APP_URL')),
 
         'hub_url' => env('NOTIFICATIONS_PUSH_HUB_URL'),
     ],
