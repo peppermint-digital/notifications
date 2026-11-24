@@ -101,6 +101,34 @@ class PushSubscriptionController
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Kennt der Server das Abo, das dieser Browser haelt? (pm #10206)
+     *
+     * Der Browser weiss nur, dass ER ein Abo hat. Antwortet der Push-Dienst
+     * beim Versand mit 404 oder 410, loescht der Zusteller die Zeile — der
+     * Browser erfaehrt davon nichts. Bis v0.32 meldete die Oberflaeche ein
+     * solches Abo stillschweigend neu an und zeigte „abonniert" fuer einen
+     * Endpunkt, den der Dienst laengst verworfen hatte.
+     *
+     * `null` heisst „weiss ich nicht": Im Hub-Betrieb liegen die Abos in AI
+     * Brain, und ohne Push gibt es keine. Die Oberflaeche verhaelt sich dann
+     * wie bisher. Nachsehen legt nie eine Zeile an.
+     */
+    public function status(Request $request): JsonResponse
+    {
+        $geprueft = $request->validate([
+            'endpoint' => ['required', 'string', 'max:2048'],
+        ]);
+
+        if (! PushBetrieb::lokal()) {
+            return response()->json(['bekannt' => null]);
+        }
+
+        return response()->json([
+            'bekannt' => $this->abos->bekannt($request->user(), $geprueft['endpoint']),
+        ]);
+    }
+
     private function keinPush(): JsonResponse
     {
         return response()->json([

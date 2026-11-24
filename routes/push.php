@@ -29,3 +29,7 @@ Route::get('api/push/public-key', PushKeyController::class)->name('push.public-k
 
 Route::post('api/push/subscribe', [PushSubscriptionController::class, 'store'])->name('push.subscribe');
 Route::delete('api/push/subscribe', [PushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
+
+// POST und nicht GET: Die Abo-Adresse ist eine Zustelladresse und gehoert
+// nicht in Zugriffsprotokolle, und sie ist bis zu 2048 Zeichen lang.
+Route::post('api/push/subscribe/status', [PushSubscriptionController::class, 'status'])->name('push.subscribe.status');

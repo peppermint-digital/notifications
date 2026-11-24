@@ -150,6 +150,26 @@ Schlüssel macht jedes bestehende Abo lautlos wertlos**, und jedes Gerät muss
 neu abonnieren (`PushToggle`/`usePush` erkennt den fremden Schlüssel und
 ersetzt das Abo).
 
+**Hinweis „Push auf diesem Gerät aus" (seit v0.33).** `<PushHinweis />` steht,
+solange auf diesem Gerät nichts ankommt: kein Abo, keine Erlaubnis oder ein
+Abo, das der Server nicht mehr kennt. Ein Klick schaltet ein; bei gesperrter
+Erlaubnis nennt er die Schritte statt eines Knopfs. „Später" gilt nur für die
+laufende Sitzung (sessionStorage). Wo der Browser kein Push kann, erscheint er
+nicht. Ob das Produkt Push anbietet, entscheidet das Produkt — es hängt ihn
+nur dann ein.
+
+```tsx
+{push.verfuegbar && <PushHinweis routes={{ worker: '/sw.js' }} />}
+```
+
+Ob der Server ein Abo noch kennt, fragt `usePush` über
+`POST api/push/subscribe/status` (`{bekannt: true|false|null}`). Im Betrieb
+`local` antwortet die eigene Tabelle — nur Zeilen der angemeldeten Person;
+im Hub-Betrieb und ohne Push `null`, dann gilt das Verhalten bis v0.32
+(nachmelden). Ein Abo mit `bekannt: false` wirft `subscribe()` weg und legt ein
+frisches an — mit gleichem Schlüssel gäbe der Browser sonst denselben toten
+Endpunkt zurück.
+
 ## Benutzung
 
 ### Zustellen

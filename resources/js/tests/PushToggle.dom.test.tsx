@@ -2,68 +2,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PushToggle } from '../src/PushToggle';
+import { antwortenMit, browserMit } from './push-browser';
 
 afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
 });
-
-/** Einen Browser bauen, der Push kann — jsdom kann es von sich aus nicht. */
-function browserMit({
-    permission = 'granted',
-    abo = null,
-    kannPush = true,
-}: { permission?: string; abo?: unknown; kannPush?: boolean } = {}) {
-    const subscribe = vi.fn(async () => ({
-        endpoint: 'https://push.test/abc',
-        toJSON: () => ({ endpoint: 'https://push.test/abc', keys: { p256dh: 'P', auth: 'A' } }),
-        unsubscribe: vi.fn(async () => true),
-        // Seit v0.22 prueft der Haken, ob das Abo zum AKTUELLEN Schluessel
-        // passt — ein Abo mit fremdem Schluessel ist tot und wird als
-        // „nicht abonniert" gezeigt, damit der Knopf es ersetzen kann.
-        options: { applicationServerKey: new TextEncoder().encode('ABCDEFG').buffer },
-    }));
-
-    // Ein vorhandenes Abo traegt per Vorgabe den AKTUELLEN Schluessel und
-    // kann sich serialisieren — beides braucht der Haken seit v0.22, um
-    // ein totes Abo von einem gueltigen zu unterscheiden und ein
-    // gueltiges beim Server nachzumelden. Ein Test, der ein ALTES Abo
-    // nachstellen will, gibt eigene `options` mit.
-    const vorhandenes = abo === null
-        ? null
-        : {
-            toJSON: () => ({ endpoint: 'https://push.test/abc', keys: { p256dh: 'P', auth: 'A' } }),
-            options: { applicationServerKey: new TextEncoder().encode('ABCDEFG').buffer },
-            unsubscribe: vi.fn(async () => true),
-            ...(abo as Record<string, unknown>),
-        };
-
-    const registrierung = {
-        pushManager: { getSubscription: vi.fn(async () => vorhandenes), subscribe },
-    };
-
-    if (kannPush) {
-        vi.stubGlobal('PushManager', function () {});
-        vi.stubGlobal('Notification', {
-            permission,
-            requestPermission: vi.fn(async () => permission),
-        });
-        Object.defineProperty(navigator, 'serviceWorker', {
-            configurable: true,
-            value: {
-                getRegistration: vi.fn(async () => registrierung),
-                register: vi.fn(async () => registrierung),
-                ready: Promise.resolve(registrierung),
-            },
-        });
-    } else {
-        vi.stubGlobal('PushManager', undefined);
-        // @ts-expect-error — absichtlich entfernt
-        delete (navigator as Record<string, unknown>).serviceWorker;
-    }
-
-    return { subscribe };
-}
 
 beforeEach(() => {
     vi.stubGlobal(
@@ -129,8 +73,35 @@ describe('Zustand aus dem Browser', () => {
         await waitFor(() => {
             const rufe = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
 
-            expect(rufe.some(([url, init]) => String(url).includes('subscribe') && init?.method === 'POST')).toBe(true);
+            // Genau die Abo-Adresse — `/api/push/subscribe/status` ist
+            // seit v0.33 ebenfalls ein POST und zaehlt hier nicht.
+            expect(rufe.some(([url, init]) => String(url) === '/api/push/subscribe' && init?.method === 'POST')).toBe(true);
         });
+    });
+
+    it('zeigt „kein Push", wenn der Server das Abo nicht mehr kennt — und meldet es nicht nach', async () => {
+        // pm #10206: Antwortet der Push-Dienst mit 404/410, loescht der
+        // Server die Zeile. Der Browser weiss davon nichts. Bis v0.32 wurde
+        // das tote Abo hier still neu angemeldet und der Schalter stand auf
+        // gruen — fuer einen Endpunkt, an den nie wieder etwas geht.
+        browserMit({ abo: { endpoint: 'https://push.test/abc' } });
+        vi.stubGlobal('fetch', antwortenMit({ bekannt: false }));
+
+        render(<PushToggle />);
+
+        await waitFor(() => expect(screen.getByText('Dieses Gerät bekommt kein Push')).toBeDefined());
+
+        const rufe = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls;
+        expect(rufe.some(([url]) => String(url) === '/api/push/subscribe')).toBe(false);
+    });
+
+    it('zeigt „bekommt Push", wenn der Server das Abo kennt', async () => {
+        browserMit({ abo: { endpoint: 'https://push.test/abc' } });
+        vi.stubGlobal('fetch', antwortenMit({ bekannt: true }));
+
+        render(<PushToggle />);
+
+        await waitFor(() => expect(screen.getByText('Dieses Gerät bekommt Push')).toBeDefined());
     });
 
     it('sagt es, wenn der Browser gar kein Push kann', async () => {
@@ -194,6 +165,37 @@ describe('Zustand aus dem Browser', () => {
 });
 
 describe('Abonnieren', () => {
+    it('ersetzt ein Abo, das der Server nicht mehr kennt, statt es wiederzubeleben', async () => {
+        // Gleicher Schluessel, aber tot: Ohne Abmelden gaebe der Browser
+        // bei `subscribe()` genau dieses Abo zurueck — derselbe Endpunkt,
+        // den der Push-Dienst schon verworfen hat.
+        const vorhandenesAbmelden = vi.fn(async () => true);
+        const { subscribe } = browserMit({ abo: { endpoint: 'https://push.test/tot', unsubscribe: vorhandenesAbmelden } });
+        vi.stubGlobal('fetch', antwortenMit({ bekannt: false }));
+
+        render(<PushToggle />);
+        await waitFor(() => screen.getByText('Einschalten'));
+
+        fireEvent.click(screen.getByText('Einschalten'));
+
+        await waitFor(() => expect(screen.getByText('Dieses Gerät bekommt Push')).toBeDefined());
+        expect(vorhandenesAbmelden).toHaveBeenCalled();
+        expect(subscribe).toHaveBeenCalled();
+    });
+
+    it('laesst ein Abo stehen, ueber das der Server nichts weiss', async () => {
+        // `bekannt: null` heisst Hub-Betrieb oder kein Push — dort
+        // entscheidet der Server nicht, also wird auch nichts weggeworfen.
+        const vorhandenesAbmelden = vi.fn(async () => true);
+        browserMit({ abo: { endpoint: 'https://push.test/abc', unsubscribe: vorhandenesAbmelden } });
+        vi.stubGlobal('fetch', antwortenMit({ bekannt: null }));
+
+        render(<PushToggle />);
+
+        await waitFor(() => expect(screen.getByText('Dieses Gerät bekommt Push')).toBeDefined());
+        expect(vorhandenesAbmelden).not.toHaveBeenCalled();
+    });
+
     it('schickt das Abo an den Server', async () => {
         browserMit({ abo: null });
 

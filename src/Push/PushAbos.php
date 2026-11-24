@@ -42,4 +42,19 @@ class PushAbos
             ->where('endpoint_hash', PushSubscription::fingerabdruck($endpoint))
             ->delete();
     }
+
+    /**
+     * Haelt DIESE Person ein Abo unter dieser Adresse?
+     *
+     * Nur das eigene zaehlt: Hat auf demselben Browser zuletzt jemand anderes
+     * abonniert, gehen die Meldungen an ihn — fuer die angemeldete Person
+     * kommt auf diesem Geraet nichts an.
+     */
+    public function bekannt(Model $user, string $endpoint): bool
+    {
+        return PushSubscription::query()
+            ->fuer($user->getKey())
+            ->where('endpoint_hash', PushSubscription::fingerabdruck($endpoint))
+            ->exists();
+    }
 }

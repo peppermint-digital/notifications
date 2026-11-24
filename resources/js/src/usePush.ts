@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Web-Push im Browser: Zustand, An- und Abmelden.
@@ -56,6 +56,13 @@ export interface PushRoutes {
     subscribe?: string;
     /** Vorgabe: `/push-sw.js` */
     worker?: string;
+    /**
+     * Vorgabe: `/api/push/subscribe/status` (POST, seit v0.33).
+     *
+     * Fragt, ob der Server das Abo dieses Browsers noch kennt. Ein Produkt
+     * ohne diese Route antwortet 404 — dann gilt das alte Verhalten.
+     */
+    status?: string;
 }
 
 export interface UsePushResult {
@@ -70,6 +77,7 @@ const VORGABE: Required<PushRoutes> = {
     publicKey: '/api/push/public-key',
     subscribe: '/api/push/subscribe',
     worker: '/push-sw.js',
+    status: '/api/push/subscribe/status',
 };
 
 /**
@@ -122,6 +130,11 @@ export function usePush(routes?: PushRoutes): UsePushResult {
     const [status, setStatus] = useState<PushStatus>('pruefe');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Der Endpunkt eines Abos, das der Server nicht mehr kennt. `subscribe()`
+    // muss es wegwerfen: Bei gleichem Schluessel gaebe der Browser sonst
+    // genau dieses tote Abo zurueck.
+    const totesAbo = useRef<string | null>(null);
 
     const moeglich = (): boolean =>
         typeof window !== 'undefined'
@@ -179,9 +192,38 @@ export function usePush(routes?: PushRoutes): UsePushResult {
                 return;
             }
 
-            // Richtiger Schluessel: dem Server nachmelden, falls er die
-            // Zeile nicht (mehr) hat. `updateOrCreate` drueben macht das
-            // folgenlos, wenn er sie schon kennt.
+            // Richtiger Schluessel — kennt der Server das Abo noch?
+            //
+            // Antwortet der Push-Dienst beim Versand mit 404 oder 410,
+            // loescht der Server die Zeile; der Browser erfaehrt davon
+            // nichts. Bis v0.32 wurde ein solches Abo hier still neu
+            // angemeldet und galt als „abonniert" — fuer einen Endpunkt,
+            // an den nie wieder etwas geht (pm #10206).
+            const bekannt = await serverKennt(adressen.status, abo.endpoint);
+
+            if (bekannt === 'nicht-angemeldet') {
+                setStatus('nicht-angemeldet');
+
+                return;
+            }
+
+            if (bekannt === false) {
+                totesAbo.current = abo.endpoint;
+                setStatus('nicht-abonniert');
+
+                return;
+            }
+
+            if (bekannt === true) {
+                setStatus('abonniert');
+
+                return;
+            }
+
+            // Der Server weiss es nicht (Hub-Betrieb, aelteres Produkt):
+            // dem Server nachmelden, falls er die Zeile nicht (mehr) hat.
+            // `updateOrCreate` drueben macht das folgenlos, wenn er sie
+            // schon kennt.
             await fetch(adressen.subscribe, {
                 method: 'POST',
                 headers: {
@@ -199,7 +241,7 @@ export function usePush(routes?: PushRoutes): UsePushResult {
             // Oberfläche dasselbe wie keine: Es lässt sich abonnieren.
             setStatus('nicht-abonniert');
         }
-    }, [adressen.publicKey, adressen.subscribe]);
+    }, [adressen.publicKey, adressen.subscribe, adressen.status]);
 
     useEffect(() => {
         void pruefen();
@@ -262,9 +304,18 @@ export function usePush(routes?: PushRoutes): UsePushResult {
             // Oberflaeche es nicht, weil sie das alte Abo nicht wegraeumte.
             const vorhandenes = await registrierung.pushManager.getSubscription();
 
-            if (vorhandenes !== null && !gleicherSchluessel(vorhandenes, neuerSchluessel)) {
+            //
+            // Dasselbe fuer ein Abo, das der Server nicht mehr kennt: Mit
+            // gleichem Schluessel gaebe `subscribe()` es unveraendert
+            // zurueck — derselbe tote Endpunkt.
+            if (
+                vorhandenes !== null
+                && (!gleicherSchluessel(vorhandenes, neuerSchluessel) || vorhandenes.endpoint === totesAbo.current)
+            ) {
                 await vorhandenes.unsubscribe();
             }
+
+            totesAbo.current = null;
 
             const abo = await registrierung.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -359,6 +410,42 @@ export function usePush(routes?: PushRoutes): UsePushResult {
     }, [adressen.subscribe, busy]);
 
     return { status, busy, error, subscribe, unsubscribe };
+}
+
+/**
+ * Kennt der Server das Abo unter diesem Endpunkt?
+ *
+ * `null` heisst „weiss er nicht": Hub-Betrieb, kein Push, ein Produkt ohne
+ * die Route (404) oder ein Netzfehler. Dann entscheidet der Browser allein,
+ * wie bis v0.32 — lieber ein Abo stehen lassen als ein gutes wegwerfen.
+ */
+export async function serverKennt(adresse: string, endpoint: string): Promise<boolean | null | 'nicht-angemeldet'> {
+    try {
+        const antwort = await fetch(adresse, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...csrfHeaders(),
+            },
+            body: JSON.stringify({ endpoint }),
+        });
+
+        if (antwort.status === 401 || antwort.status === 419) {
+            return 'nicht-angemeldet';
+        }
+
+        if (!antwort.ok) {
+            return null;
+        }
+
+        const bekannt = (await antwort.json())?.bekannt;
+
+        return typeof bekannt === 'boolean' ? bekannt : null;
+    } catch {
+        return null;
+    }
 }
 
 /**
