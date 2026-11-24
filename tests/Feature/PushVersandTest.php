@@ -1,6 +1,5 @@
 <?php
 
-use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
@@ -43,7 +42,7 @@ function pushDienst(array $antworten, array &$verlauf): void
     $stapel = HandlerStack::create(new MockHandler($antworten));
     $stapel->push(Middleware::history($verlauf));
 
-    app()->instance(PushZusteller::class, new PushZusteller(new Client(['handler' => $stapel])));
+    app()->instance(PushZusteller::class, new PushZusteller(['handler' => $stapel]));
 }
 
 function abo(User $person, string $endpoint): PushSubscription
