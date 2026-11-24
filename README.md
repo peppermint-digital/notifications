@@ -153,7 +153,9 @@ ersetzt das Abo).
 **Hinweis „Push auf diesem Gerät aus" (seit v0.33).** `<PushHinweis />` steht,
 solange auf diesem Gerät nichts ankommt: kein Abo, keine Erlaubnis oder ein
 Abo, das der Server nicht mehr kennt. Ein Klick schaltet ein; bei gesperrter
-Erlaubnis nennt er die Schritte statt eines Knopfs. „Später" gilt nur für die
+Erlaubnis nennt er die Schritte statt eines Knopfs — im Browser über die
+Adresszeile, in der App vom Home-Bildschirm (`display-mode: standalone`) über
+die Einstellungen des Handys, je für iOS und Android. „Später" gilt nur für die
 laufende Sitzung (sessionStorage). Wo der Browser kein Push kann, erscheint er
 nicht. Ob das Produkt Push anbietet, entscheidet das Produkt — es hängt ihn
 nur dann ein.

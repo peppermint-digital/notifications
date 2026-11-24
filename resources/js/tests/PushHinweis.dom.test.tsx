@@ -98,6 +98,54 @@ describe('Gesperrte Erlaubnis', () => {
     });
 });
 
+describe('Gesperrt in der App vom Home-Bildschirm', () => {
+    // Dort gibt es keine Adresszeile und kein Schloss — die Erlaubnis
+    // steht in den Einstellungen des Handys (Bastian, 24.11.2026).
+    const alsApp = (userAgent: string) => {
+        vi.stubGlobal('matchMedia', (abfrage: string) => ({
+            matches: abfrage === '(display-mode: standalone)',
+            media: abfrage,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+        }));
+        vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent);
+    };
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('nennt am iPhone die Mitteilungen in den Einstellungen statt der Adresszeile', async () => {
+        alsApp('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15');
+        browserMit({ permission: 'denied' });
+
+        render(<PushHinweis />);
+
+        await waitFor(() => expect(screen.getByText(/blockiert/)).toBeDefined());
+        expect(screen.getByText(/Einstellungen → Mitteilungen/)).toBeDefined();
+        expect(screen.queryByText(/Adresszeile/)).toBeNull();
+    });
+
+    it('nennt an Android die App-Info', async () => {
+        alsApp('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36');
+        browserMit({ permission: 'denied' });
+
+        render(<PushHinweis />);
+
+        await waitFor(() => expect(screen.getByText(/blockiert/)).toBeDefined());
+        expect(screen.getByText(/App-Info/)).toBeDefined();
+        expect(screen.queryByText(/Adresszeile/)).toBeNull();
+    });
+
+    it('bleibt im Browser bei der Adresszeile', async () => {
+        browserMit({ permission: 'denied' });
+
+        render(<PushHinweis />);
+
+        await waitFor(() => expect(screen.getByText(/Adresszeile/)).toBeDefined());
+    });
+});
+
 describe('Einschalten', () => {
     it('schaltet mit einem Klick ein und verschwindet dann', async () => {
         const { subscribe } = browserMit({ abo: null });

@@ -37,6 +37,37 @@ export interface PushHinweisProps {
 
 const VORGABE_MERKNAME = 'peppermint.push-hinweis.spaeter';
 
+/**
+ * Wo die gesperrte Erlaubnis wieder aufgeht.
+ *
+ * Im Browser über das Schloss in der Adresszeile. In der App vom
+ * Home-Bildschirm gibt es keine Adresszeile — dort steht die Erlaubnis in den
+ * Einstellungen des Handys, und die heißen bei iOS und Android verschieden.
+ */
+export type SperrOrt = 'browser' | 'ios-app' | 'android-app';
+
+export function sperrOrt(): SperrOrt {
+    if (typeof window === 'undefined') {
+        return 'browser';
+    }
+
+    const alsApp =
+        (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+    if (!alsApp) {
+        return 'browser';
+    }
+
+    return /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'ios-app' : 'android-app';
+}
+
+const ANLEITUNG: Record<SperrOrt, string> = {
+    browser: 'Schloss-Symbol in der Adresszeile → Benachrichtigungen auf „Zulassen“ → Seite neu laden.',
+    'ios-app': 'Einstellungen → Mitteilungen → diese App → „Mitteilungen erlauben“ einschalten, dann die App neu öffnen.',
+    'android-app': 'Lange auf das App-Symbol tippen → App-Info → Benachrichtigungen → zulassen, dann die App neu öffnen.',
+};
+
 function spaeterGedrueckt(merkname: string): boolean {
     try {
         return window.sessionStorage.getItem(merkname) === '1';
@@ -83,8 +114,12 @@ export function PushHinweis({ routes, className, merkname = VORGABE_MERKNAME }: 
             <div className="min-w-0 flex-1 basis-60">
                 {gesperrt ? (
                     <>
-                        <span className="font-medium">Der Browser blockiert Push-Benachrichtigungen für diese Seite.</span>{' '}
-                        Schloss-Symbol in der Adresszeile → Benachrichtigungen auf „Zulassen“ → Seite neu laden.
+                        <span className="font-medium">
+                            {sperrOrt() === 'browser'
+                                ? 'Der Browser blockiert Push-Benachrichtigungen für diese Seite.'
+                                : 'Push-Benachrichtigungen sind für diese App blockiert.'}
+                        </span>{' '}
+                        {ANLEITUNG[sperrOrt()]}
                     </>
                 ) : (
                     <>

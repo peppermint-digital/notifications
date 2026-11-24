@@ -6,7 +6,7 @@ export {
     NotificationSettingsMoved,
     type NotificationSettingsMovedProps,
 } from './NotificationSettingsMoved';
-export { PushHinweis, type PushHinweisProps } from './PushHinweis';
+export { PushHinweis, sperrOrt, type PushHinweisProps, type SperrOrt } from './PushHinweis';
 export { PushToggle, type PushToggleProps } from './PushToggle';
 export { serverKennt, usePush, type PushRoutes, type PushStatus, type UsePushResult } from './usePush';
 export {
