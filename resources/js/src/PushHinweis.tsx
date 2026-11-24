@@ -78,7 +78,9 @@ export function PushHinweis({ routes, className, merkname = VORGABE_MERKNAME }: 
                 className={cn('size-4 shrink-0', gesperrt ? 'text-amber-600 dark:text-amber-400' : 'text-primary')}
                 aria-hidden
             />
-            <div className="min-w-0 flex-1">
+            {/* Mindestbreite, damit die Knoepfe am Handy UNTER den Text
+                umbrechen, statt ihn auf eine Wortspalte zu quetschen. */}
+            <div className="min-w-0 flex-1 basis-60">
                 {gesperrt ? (
                     <>
                         <span className="font-medium">Der Browser blockiert Push-Benachrichtigungen für diese Seite.</span>{' '}
@@ -92,7 +94,7 @@ export function PushHinweis({ routes, className, merkname = VORGABE_MERKNAME }: 
                 )}
                 {error && <span className="block text-destructive">{error}</span>}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2">
                 {!gesperrt && (
                     <Button variant="primary" onClick={() => void subscribe()} disabled={busy}>
                         {busy && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
