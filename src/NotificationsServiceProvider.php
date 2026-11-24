@@ -23,6 +23,8 @@ use Peppermint\Notifications\Mail\EmailDelivery;
 use Peppermint\Notifications\Push\PushAbos;
 use Peppermint\Notifications\Push\PushBetrieb;
 use Peppermint\Notifications\Push\PushKeys;
+use Peppermint\Notifications\Push\PushVersand;
+use Peppermint\Notifications\Push\PushZusteller;
 use Peppermint\Notifications\Types\TypeRegistry;
 
 class NotificationsServiceProvider extends ServiceProvider
@@ -60,6 +62,7 @@ class NotificationsServiceProvider extends ServiceProvider
         $this->app->singleton(PushKeys::class);
         $this->app->singleton(PushForwarder::class);
         $this->app->singleton(PushAbos::class);
+        $this->app->bindIf(PushZusteller::class);
         $this->app->singleton(EmailDelivery::class);
         $this->app->singleton(NativeBridge::class);
     }
@@ -103,6 +106,7 @@ class NotificationsServiceProvider extends ServiceProvider
         }
 
         $this->spiegelungVerdrahten();
+        $this->pushVerdrahten();
         $this->mailVerdrahten();
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'notifications');
@@ -114,6 +118,21 @@ class NotificationsServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([SammelMailCommand::class, PushSchluesselCommand::class]);
         }
+    }
+
+    /**
+     * Der eigene Push-Versand — nur im Betrieb `local`.
+     *
+     * Wie die Mail nur an `NotificationCreated`: Eine fortgeschriebene
+     * Sammelmeldung soll kein zweites Mal klingeln.
+     */
+    private function pushVerdrahten(): void
+    {
+        if (! PushBetrieb::lokal()) {
+            return;
+        }
+
+        Event::listen(NotificationCreated::class, [PushVersand::class, 'handle']);
     }
 
     /**

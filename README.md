@@ -122,6 +122,34 @@ wenn sie beim Ausfall der Gegenstelle unsichtbar wird. Die Glocke zeigt dann
 einen unvollständigen Stand — aber sie zeigt einen. **Fail-open, nicht
 fail-closed.**
 
+### 4. Push: über den Hub, selbst oder gar nicht (seit v0.32)
+
+```env
+NOTIFICATIONS_PUSH_DRIVER=local   # oder hub, none
+VAPID_PUBLIC_KEY=…                # php artisan notifications:push-schluessel
+VAPID_PRIVATE_KEY=…
+VAPID_SUBJECT=mailto:…            # Vorgabe: APP_URL
+```
+
+- **`hub`**: AI Brain hält Abos und Schlüssel, das Produkt reicht ein Abo nur
+  weiter. Das ist die Vorgabe bei `hub = brain`.
+- **`local`**: eigene Tabelle `push_subscriptions` (Migrationsordner
+  `database/push-migrations`, nur in diesem Betrieb geladen, eine vorhandene
+  Tabelle bleibt unberührt), eigenes VAPID-Paar, eigener Versand über
+  `minishlink/web-push`. Jede neue Meldung (nicht die Fortschreibung einer
+  Sammelmeldung) geht als Job `SendePush` in die Warteschlange, wenn die Person
+  für diese Art Push auf `instant` stehen hat. Abgelaufene Abos (404/410)
+  werden gelöscht.
+- **`none`**: kein Push. Der Abo-Endpunkt antwortet 503 `push_disabled`. Das
+  ist die Vorgabe bei `hub = local`, damit ein Produkt durch das Anheben des
+  Pakets nicht still anfängt, Abos zu speichern.
+
+`notifications:push-schluessel` schreibt ein neues Paar nur in die `.env`,
+zeigt es nicht an und ersetzt ein vorhandenes nur mit `--force`. **Ein neuer
+Schlüssel macht jedes bestehende Abo lautlos wertlos**, und jedes Gerät muss
+neu abonnieren (`PushToggle`/`usePush` erkennt den fremden Schlüssel und
+ersetzt das Abo).
+
 ## Benutzung
 
 ### Zustellen
