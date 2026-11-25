@@ -338,6 +338,14 @@ seine Meldungsseite zurück:
 <InboxButton href="/notifications/inbox" countUrl="/api/inbox/unread-count" />
 ```
 
+**Sofort neu zählen (seit v0.34.0, pm #10227).** Neben dem Minutentakt fragt
+der Knopf neu, wenn das Fensterereignis `peppermint:posteingang-geaendert`
+kommt (`POSTEINGANG_GEAENDERT`; die Posteingangs-Seite aus
+`@peppermint-digital/inbox` ab v0.8.0 löst es nach jedem Abhaken und Löschen
+aus) und wenn der Browser die Seite mit „Zurück" aus seinem Zwischenspeicher
+holt (`pageshow` mit `persisted`). Vorher stand nach dem Abhaken bis zu eine
+Minute die alte Zahl da.
+
 ### Wohin ein Klick geht: `oeffneVerweis`
 
 > **Eine Zeile mit `source` gehört nie in den Router der aufnehmenden

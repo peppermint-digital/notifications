@@ -131,3 +131,53 @@ describe('Vorlesbarkeit', () => {
         await waitFor(() => expect(screen.getByLabelText('Posteingang')).toBeDefined());
     });
 });
+
+describe('Sofort neu zaehlen (pm #10227)', () => {
+    /*
+     * Bastian, 25.11.2026: „wenn ich sie als gelesen markiere, passiert
+     * nichts. Die Zahlen verändern sich nicht." Die Zahl kam nur im
+     * Minutentakt; nach dem Abhaken stand bis zu einer Minute die alte da.
+     */
+    it('fragt neu, wenn die Posteingangs-Seite eine Aenderung meldet', async () => {
+        mitZahl(1461);
+
+        render(<InboxButton pollMs={0} />);
+
+        await waitFor(() => expect(screen.getByText('99+')).toBeDefined());
+
+        mitZahl(5);
+        window.dispatchEvent(new CustomEvent('peppermint:posteingang-geaendert'));
+
+        await waitFor(() => expect(screen.getByText('5')).toBeDefined());
+    });
+
+    it('fragt neu, wenn der Browser die Seite mit „Zurueck" aus seinem Zwischenspeicher holt', async () => {
+        mitZahl(3);
+
+        render(<InboxButton pollMs={0} />);
+
+        await waitFor(() => expect(screen.getByText('3')).toBeDefined());
+
+        mitZahl(2);
+        const ereignis = new Event('pageshow') as PageTransitionEvent;
+        Object.defineProperty(ereignis, 'persisted', { value: true });
+        window.dispatchEvent(ereignis);
+
+        await waitFor(() => expect(screen.getByText('2')).toBeDefined());
+    });
+
+    it('hoert nach dem Abbauen nicht mehr zu', async () => {
+        mitZahl(1);
+
+        const { unmount } = render(<InboxButton pollMs={0} />);
+
+        await waitFor(() => expect(screen.getByText('1')).toBeDefined());
+
+        unmount();
+        const fetchen = vi.fn(async () => new Response(JSON.stringify({ unread_count: 9 }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchen);
+        window.dispatchEvent(new CustomEvent('peppermint:posteingang-geaendert'));
+
+        expect(fetchen).not.toHaveBeenCalled();
+    });
+});

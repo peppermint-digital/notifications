@@ -75,6 +75,13 @@ export interface InboxButtonProps {
 const VORGABE_HREF = '/posteingang';
 const VORGABE_ZAEHLER = '/posteingang/ungelesen';
 
+/**
+ * Dasselbe Wort wie `POSTEINGANG_GEAENDERT` in `@peppermint-digital/inbox`
+ * (pm #10227). Wörtlich doppelt, weil keines der beiden Pakete das andere
+ * voraussetzt.
+ */
+export const POSTEINGANG_GEAENDERT = 'peppermint:posteingang-geaendert';
+
 export function InboxButton({
     href = VORGABE_HREF,
     countUrl = VORGABE_ZAEHLER,
@@ -118,6 +125,42 @@ export function InboxButton({
 
         return () => clearInterval(takt);
     }, [holen, pollMs]);
+
+    /*
+     * Sofort neu zählen, wenn sich etwas geändert hat (pm #10227).
+     *
+     * Bis v0.34.0 kam die Zahl nur im Minutentakt. Wer auf der Seite
+     * abhakte, sah das Abzeichen bis zu einer Minute lang unverändert —
+     * Bastian: „Die Zahlen verändern sich nicht."
+     *
+     * - `peppermint:posteingang-geaendert` löst die Posteingangs-Seite aus
+     *   (`@peppermint-digital/inbox` ab v0.8.0) nach jedem Abhaken und
+     *   Löschen. Der Name steht dort wörtlich gleich; die Pakete kennen
+     *   sich nicht.
+     * - `pageshow` mit `persisted`: Wer eine fremde Zeile öffnet, verlässt
+     *   die Anwendung. Mit „Zurück" holt der Browser die Seite unverändert
+     *   aus seinem Zwischenspeicher — samt der alten Zahl.
+     */
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const neu = (): void => void holen();
+        const zurueck = (ereignis: PageTransitionEvent): void => {
+            if (ereignis.persisted) {
+                void holen();
+            }
+        };
+
+        window.addEventListener(POSTEINGANG_GEAENDERT, neu);
+        window.addEventListener('pageshow', zurueck);
+
+        return () => {
+            window.removeEventListener(POSTEINGANG_GEAENDERT, neu);
+            window.removeEventListener('pageshow', zurueck);
+        };
+    }, [holen]);
 
     // Dreistellig passt nicht auf ein Abzeichen dieser Größe, und die genaue
     // Zahl ist ab da ohnehin keine Hilfe mehr.
