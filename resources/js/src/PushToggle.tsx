@@ -114,12 +114,12 @@ export function PushToggle({ routes, className }: PushToggleProps) {
             <div
                 className={cn(
                     'flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4',
-                    abonniert && 'border-green-600/30 bg-green-50 dark:bg-green-950/30',
+                    abonniert && 'border-success-border bg-success-subtle',
                 )}
             >
                 <div className="flex items-start gap-3">
                     {abonniert ? (
-                        <Bell className="mt-0.5 h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
+                        <Bell className="mt-0.5 h-5 w-5 shrink-0 text-success" />
                     ) : (
                         <BellOff className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
                     )}
@@ -163,14 +163,14 @@ function Kasten({ titel, children, symbol: Symbol, ton, className }: KastenProps
         <div
             className={cn(
                 'flex items-start gap-3 rounded-lg border p-4',
-                ton === 'warnung' && 'border-amber-600/30 bg-amber-50 dark:bg-amber-950/30',
+                ton === 'warnung' && 'border-warning-border bg-warning-subtle',
                 className,
             )}
         >
             <Symbol
                 className={cn(
                     'mt-0.5 h-5 w-5 shrink-0',
-                    ton === 'warnung' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground',
+                    ton === 'warnung' ? 'text-warning' : 'text-muted-foreground',
                 )}
             />
             <div className="text-sm">

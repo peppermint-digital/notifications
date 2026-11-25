@@ -100,13 +100,13 @@ export function PushHinweis({ routes, className, merkname = VORGABE_MERKNAME }: 
         <div
             className={cn(
                 'flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2 text-sm',
-                gesperrt ? 'border-amber-600/30 bg-amber-50 dark:bg-amber-950/30' : 'bg-muted/60',
+                gesperrt ? 'border-warning-border bg-warning-subtle' : 'bg-muted/60',
                 className,
             )}
             role="status"
         >
             <Symbol
-                className={cn('size-4 shrink-0', gesperrt ? 'text-amber-600 dark:text-amber-400' : 'text-primary')}
+                className={cn('size-4 shrink-0', gesperrt ? 'text-warning' : 'text-primary')}
                 aria-hidden
             />
             {/* Mindestbreite, damit die Knoepfe am Handy UNTER den Text

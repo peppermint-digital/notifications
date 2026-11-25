@@ -328,7 +328,7 @@ function Zeile({
                     {!item.isRead && !fremd && (
                         <Button
                             icon
-                            className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950"
+                            className="text-info hover:bg-info-subtle"
                             title="Als gelesen markieren"
                             disabled={busy}
                             onClick={(event) => {
