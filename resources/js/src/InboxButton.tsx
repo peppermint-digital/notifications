@@ -1,6 +1,6 @@
 import { Inbox } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
 import { cn } from './ui/utils';
+import { POSTEINGANG_GEAENDERT, usePosteingangZahl } from './usePosteingangZahl';
 
 /**
  * Der Posteingangs-Knopf für die Kopfzeile — in jedem Produkt derselbe.
@@ -70,17 +70,20 @@ export interface InboxButtonProps {
 
     label?: string;
     className?: string;
+    /**
+     * Die Zahl von aussen, aus {@link usePosteingangZahl} (pm #10233).
+     *
+     * Fuer ein Produkt, das sie an zweiter Stelle braucht (am Telefon ein
+     * Menue statt des Knopfes) und deshalb selbst zaehlt. Dann fragt der
+     * Knopf nicht noch einmal. Ohne Angabe zaehlt er wie bisher.
+     */
+    count?: number;
 }
 
 const VORGABE_HREF = '/posteingang';
 const VORGABE_ZAEHLER = '/posteingang/ungelesen';
 
-/**
- * Dasselbe Wort wie `POSTEINGANG_GEAENDERT` in `@peppermint-digital/inbox`
- * (pm #10227). Wörtlich doppelt, weil keines der beiden Pakete das andere
- * voraussetzt.
- */
-export const POSTEINGANG_GEAENDERT = 'peppermint:posteingang-geaendert';
+export { POSTEINGANG_GEAENDERT };
 
 export function InboxButton({
     href = VORGABE_HREF,
@@ -90,77 +93,13 @@ export function InboxButton({
     onNavigate,
     label = 'Posteingang',
     className,
+    count,
 }: InboxButtonProps) {
-    const [anzahl, setAnzahl] = useState(initialCount);
-
-    const holen = useCallback(async (): Promise<void> => {
-        try {
-            const antwort = await fetch(countUrl, {
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            });
-
-            if (!antwort.ok) {
-                return;
-            }
-
-            const zahl = Number((await antwort.json()).unread_count);
-
-            if (Number.isFinite(zahl)) {
-                setAnzahl(zahl);
-            }
-        } catch {
-            // Ein Netzaussetzer lässt die letzte bekannte Zahl stehen. Eine
-            // Null wäre die falsche Aussage — sie hieße „alles gelesen".
-        }
-    }, [countUrl]);
-
-    useEffect(() => {
-        void holen();
-
-        if (pollMs <= 0) {
-            return;
-        }
-
-        const takt = setInterval(() => void holen(), pollMs);
-
-        return () => clearInterval(takt);
-    }, [holen, pollMs]);
-
-    /*
-     * Sofort neu zählen, wenn sich etwas geändert hat (pm #10227).
-     *
-     * Bis v0.34.0 kam die Zahl nur im Minutentakt. Wer auf der Seite
-     * abhakte, sah das Abzeichen bis zu einer Minute lang unverändert —
-     * Bastian: „Die Zahlen verändern sich nicht."
-     *
-     * - `peppermint:posteingang-geaendert` löst die Posteingangs-Seite aus
-     *   (`@peppermint-digital/inbox` ab v0.8.0) nach jedem Abhaken und
-     *   Löschen. Der Name steht dort wörtlich gleich; die Pakete kennen
-     *   sich nicht.
-     * - `pageshow` mit `persisted`: Wer eine fremde Zeile öffnet, verlässt
-     *   die Anwendung. Mit „Zurück" holt der Browser die Seite unverändert
-     *   aus seinem Zwischenspeicher — samt der alten Zahl.
-     */
-    useEffect(() => {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
-        const neu = (): void => void holen();
-        const zurueck = (ereignis: PageTransitionEvent): void => {
-            if (ereignis.persisted) {
-                void holen();
-            }
-        };
-
-        window.addEventListener(POSTEINGANG_GEAENDERT, neu);
-        window.addEventListener('pageshow', zurueck);
-
-        return () => {
-            window.removeEventListener(POSTEINGANG_GEAENDERT, neu);
-            window.removeEventListener('pageshow', zurueck);
-        };
-    }, [holen]);
+    // Reicht das Produkt die Zahl selbst herein (`count`), zaehlt der Knopf
+    // nicht noch einmal — sonst fragten Knopf und Telefon-Menue denselben
+    // Endpunkt doppelt ab (pm #10233).
+    const selbstGezaehlt = usePosteingangZahl({ countUrl, initialCount, pollMs, aktiv: count === undefined });
+    const anzahl = count ?? selbstGezaehlt;
 
     // Dreistellig passt nicht auf ein Abzeichen dieser Größe, und die genaue
     // Zahl ist ab da ohnehin keine Hilfe mehr.

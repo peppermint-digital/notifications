@@ -357,6 +357,18 @@ aus) und wenn der Browser die Seite mit „Zurück" aus seinem Zwischenspeicher
 holt (`pageshow` mit `persisted`). Vorher stand nach dem Abhaken bis zu eine
 Minute die alte Zahl da.
 
+**Die Zahl an zweiter Stelle (seit v0.34.1, pm #10233).** Braucht ein Produkt
+sie noch woanders, etwa am Telefon in einem Menü statt des Knopfes, zählt es
+selbst mit `usePosteingangZahl()` und reicht sie dem Knopf herein. Dann fragt
+nur einer:
+
+```tsx
+const ungelesen = usePosteingangZahl();
+
+<InboxButton count={ungelesen} onNavigate={(ziel) => router.visit(ziel)} />
+<MeinMenue posteingang={ungelesen} />
+```
+
 ### Wohin ein Klick geht: `oeffneVerweis`
 
 > **Eine Zeile mit `source` gehört nie in den Router der aufnehmenden

@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InboxButton } from '../src/InboxButton';
+import { POSTEINGANG_GEAENDERT, usePosteingangZahl } from '../src';
 
 afterEach(cleanup);
 
@@ -179,5 +180,58 @@ describe('Sofort neu zaehlen (pm #10227)', () => {
         window.dispatchEvent(new CustomEvent('peppermint:posteingang-geaendert'));
 
         expect(fetchen).not.toHaveBeenCalled();
+    });
+});
+
+describe('Die Zahl von aussen (pm #10233)', () => {
+    it('zeigt eine hereingereichte Zahl und fragt selbst nicht', async () => {
+        const abruf = vi.fn(async () => new Response(JSON.stringify({ unread_count: 99 }), { status: 200 }));
+        vi.stubGlobal('fetch', abruf);
+
+        render(<InboxButton pollMs={0} count={5} />);
+
+        expect(screen.getByText('5')).toBeDefined();
+        await new Promise((fertig) => setTimeout(fertig, 0));
+        expect(abruf).not.toHaveBeenCalled();
+    });
+});
+
+describe('usePosteingangZahl', () => {
+    function Anzeige() {
+        return <span data-testid="zahl">{usePosteingangZahl({ pollMs: 0 })}</span>;
+    }
+
+    it('liefert dieselbe Zahl wie der Knopf', async () => {
+        mitZahl(12);
+
+        render(<Anzeige />);
+
+        await waitFor(() => expect(screen.getByTestId('zahl').textContent).toBe('12'));
+    });
+
+    it('zaehlt neu, wenn der Posteingang sich meldet', async () => {
+        mitZahl(3);
+        render(<Anzeige />);
+        await waitFor(() => expect(screen.getByTestId('zahl').textContent).toBe('3'));
+
+        mitZahl(2);
+        window.dispatchEvent(new Event(POSTEINGANG_GEAENDERT));
+
+        await waitFor(() => expect(screen.getByTestId('zahl').textContent).toBe('2'));
+    });
+
+    it('zaehlt gar nicht, wenn er abgeschaltet ist', async () => {
+        const abruf = vi.fn(async () => new Response(JSON.stringify({ unread_count: 4 }), { status: 200 }));
+        vi.stubGlobal('fetch', abruf);
+
+        function Aus() {
+            return <span data-testid="zahl">{usePosteingangZahl({ pollMs: 0, aktiv: false, initialCount: 1 })}</span>;
+        }
+
+        render(<Aus />);
+        await new Promise((fertig) => setTimeout(fertig, 0));
+
+        expect(abruf).not.toHaveBeenCalled();
+        expect(screen.getByTestId('zahl').textContent).toBe('1');
     });
 });

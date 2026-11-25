@@ -1,4 +1,5 @@
 export { InboxButton, POSTEINGANG_GEAENDERT, type InboxButtonProps } from './InboxButton';
+export { usePosteingangZahl, type PosteingangZahlOptionen } from './usePosteingangZahl';
 export { NotificationBell, type NotificationBellProps } from './NotificationBell';
 export { NotificationList, type NotificationListProps } from './NotificationList';
 export { NotificationPage, type NotificationPageProps } from './NotificationPage';
