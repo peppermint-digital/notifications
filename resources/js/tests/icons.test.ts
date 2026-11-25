@@ -43,10 +43,24 @@ describe('Farben', () => {
         // zusammengesetztes `text-${color}-600` landet nie im Build, und die
         // Farbe fehlt stumm. Der Test haelt fest, dass vollstaendige
         // Klassennamen herauskommen.
-        expect(notificationTextClass('blue')).toContain('text-blue-600');
-        expect(notificationTextClass('blue')).toContain('dark:text-blue-400');
-        expect(notificationSurfaceClass('red')).toContain('bg-red-50');
-        expect(notificationSurfaceClass('red')).toContain('dark:bg-red-950');
+        //
+        // Seit pm #10236 (F18) lesen die Klassen das Kategorie-Token des
+        // Produkts; der bisherige Tailwind-Wert steht als Rueckfall dahinter.
+        expect(notificationTextClass('blue')).toContain('text-[color:var(--kategorie-1,oklch(54.6%_0.245_262.881))]');
+        expect(notificationTextClass('blue')).toContain('dark:text-[color:var(--kategorie-1,oklch(70.7%_0.165_254.624))]');
+        expect(notificationSurfaceClass('red')).toContain('bg-[color:var(--kategorie-8-flaeche,oklch(97.1%_0.013_17.38))]');
+        expect(notificationSurfaceClass('red')).toContain('dark:bg-[color:var(--kategorie-8-flaeche,oklch(25.8%_0.092_26.042))]');
+    });
+
+    it('gibt jedem Farbwort seine eigene Nummer, in Schrift und Flaeche gleich', () => {
+        // Zwei Worte auf derselben Nummer saehen in jedem Theme gleich aus —
+        // die Unterscheidbarkeit, die die Farben tragen sollen, waere weg.
+        const nummer = (klasse: string) => klasse.match(/--kategorie-(\d+)/)?.[1];
+        const schrift = bekannteFarben().map((farbe) => nummer(notificationTextClass(farbe)));
+        const flaeche = bekannteFarben().map((farbe) => nummer(notificationSurfaceClass(farbe)));
+
+        expect(new Set(schrift).size).toBe(10);
+        expect(flaeche).toEqual(schrift);
     });
 });
 

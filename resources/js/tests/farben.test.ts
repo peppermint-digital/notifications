@@ -24,11 +24,11 @@ const ROHE_FARBE =
 const NUR_EINIGE_PRODUKTE = /\b(?:bg|text|border|ring)-(?:ai|grade-\d)(?:-[a-z-]+)?\b/g;
 
 /**
- * Bewusste Ausnahme: die Symbolfarben der Benachrichtigungsarten. Zehn Toene,
- * die Arten unterscheiden — eine Kategorienpalette wie in einem Diagramm,
- * kein Status. Kein gemeinsames Token deckt zehn Toene.
+ * Keine Ausnahme mehr: Auch die Symbolfarben der Arten (icons.ts) lesen seit
+ * F18 ihre Kategorie-Tokens. Fest steht dort nur der Rueckfall innerhalb von
+ * var(...), und den erkennt dieser Ausdruck nicht als Klasse.
  */
-const AUSNAHMEN = ['icons.ts'];
+const AUSNAHMEN: string[] = [];
 
 function dateien(): string[] {
     return readdirSync(QUELLE, { recursive: true })
