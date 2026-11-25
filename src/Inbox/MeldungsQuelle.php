@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Peppermint\Inbox\Feed\Eintrag;
 use Peppermint\Inbox\Quellen\AbhakbareQuelle;
 use Peppermint\Inbox\Quellen\LoeschbareQuelle;
+use Peppermint\Inbox\Quellen\NachTypenFilterbar;
 use Peppermint\Inbox\Quellen\ZaehlbareQuelle;
 use Peppermint\Notifications\Feed\NotificationActions;
 use Peppermint\Notifications\Feed\NotificationFeed;
@@ -58,15 +59,32 @@ use Peppermint\Notifications\Feed\NotificationFeed;
  * Wieder nur ein Durchgang zu {@see NotificationActions} — dort sitzt der
  * Empfaenger-Filter, der die Berechtigung IST.
  */
-class MeldungsQuelle implements AbhakbareQuelle, LoeschbareQuelle, ZaehlbareQuelle
+class MeldungsQuelle implements AbhakbareQuelle, LoeschbareQuelle, NachTypenFilterbar, ZaehlbareQuelle
 {
     /** Unter welcher Art die Meldungen stehen. */
     public const ART = 'notification';
 
+    /**
+     * @param  array<int, string>|null  $typen  Nur diese Arten (pm #10227); `null` = alle.
+     */
     public function __construct(
         private readonly NotificationFeed $feed,
         private readonly NotificationActions $aktionen,
+        private readonly ?array $typen = null,
     ) {}
+
+    /**
+     * Dieselbe Quelle, nur mit diesen Arten (pm #10227).
+     *
+     * Ein anderes System zeigt etwa nur Persoenliches und keine
+     * Betriebsmeldungen. Liste, Bestand, „alle als gelesen" und „alle
+     * loeschen" folgen dann derselben Auswahl — ausgeblendete Meldungen
+     * bleiben unberuehrt.
+     */
+    public function nurTypen(?array $typen): static
+    {
+        return new static($this->feed->nurTypen($typen), $this->aktionen, $typen);
+    }
 
     public function art(): string
     {
@@ -93,7 +111,7 @@ class MeldungsQuelle implements AbhakbareQuelle, LoeschbareQuelle, ZaehlbareQuel
 
     public function allesAlsGelesen(Model $person): int
     {
-        return $this->aktionen->markAllRead($person);
+        return $this->aktionen->markAllRead($person, $this->typen);
     }
 
     /**
@@ -123,7 +141,7 @@ class MeldungsQuelle implements AbhakbareQuelle, LoeschbareQuelle, ZaehlbareQuel
      */
     public function allesLoeschen(Model $person): int
     {
-        return $this->aktionen->deleteAll($person);
+        return $this->aktionen->deleteAll($person, $this->typen);
     }
 
     /**

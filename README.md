@@ -314,6 +314,17 @@ die Glocke kannte 15 der 39 Arten.
 />
 ```
 
+### Nur bestimmte Arten: `types` (seit v0.34.0, pm #10227)
+
+`list-notifications-tool` nimmt `types` (Liste der fachlichen Arten, `''` = ohne
+Art); Liste und `unread_count` folgen der Auswahl. Dasselbe gilt für die
+`MeldungsQuelle` im Posteingang (`NachTypenFilterbar` aus `peppermint/inbox`):
+Liste, Bestand, „alle als gelesen" und „alle löschen" treffen nur diese Arten.
+Ein Produkt, das Meldungen eines anderen Systems zeigt, schickt seine Liste aus
+`inbox.fremde_typen` mit (eigene Angabe unter `notifications.fremde_typen` geht
+vor). Anlass: Betriebsmeldungen aus AI Brain gehören nicht in den Posteingang
+des Managers.
+
 ### Posteingangs-Knopf für die Kopfzeile
 
 ```tsx

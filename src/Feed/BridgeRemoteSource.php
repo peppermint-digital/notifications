@@ -72,7 +72,7 @@ class BridgeRemoteSource implements RemoteSource
             // Den Hub fragt man direkt, nicht ueber den Gateway: Der
             // vermittelt zwischen PRODUKTEN, und das Brain ist keines.
             return Auspacken::antwort(
-                (self::BRUECKE)::call('list-notifications-tool', ['limit' => $grenze]),
+                (self::BRUECKE)::call('list-notifications-tool', $this->mitTypen($slug, ['limit' => $grenze])),
             );
         }
 
@@ -81,11 +81,32 @@ class BridgeRemoteSource implements RemoteSource
         // drei Mal der falsche.
         $antwort = (self::BRUECKE)::gateway(
             FremdeMeldungen::CAPABILITY,
-            ['limit' => $grenze],
+            $this->mitTypen($slug, ['limit' => $grenze]),
             $slug,
             $adresse,
         );
 
         return Auspacken::antwort(is_array($antwort) ? $antwort : []);
+    }
+
+    /**
+     * Die gezeigten Arten des anderen Systems mitgeben (pm #10227).
+     *
+     * Dieselbe Einstellung wie im Posteingang (`inbox.fremde_typen`), damit
+     * Meldungsseite, Zahl im Kopf und Posteingang dasselbe zeigen. Eine
+     * eigene Angabe unter `notifications.fremde_typen` geht vor.
+     *
+     * @param  array<string, mixed>  $argumente
+     * @return array<string, mixed>
+     */
+    private function mitTypen(string $slug, array $argumente): array
+    {
+        $typen = ((array) (config('notifications.fremde_typen') ?? config('inbox.fremde_typen', [])))[$slug] ?? null;
+
+        if (is_array($typen)) {
+            $argumente['types'] = array_values(array_map('strval', $typen));
+        }
+
+        return $argumente;
     }
 }

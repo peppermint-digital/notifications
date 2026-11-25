@@ -57,10 +57,14 @@ class NotificationActions
             ]);
     }
 
-    public function markAllRead(Model|int|string $user): int
+    /**
+     * @param  array<int, string>|null  $typen  Nur diese Arten (pm #10227); `null` = alle.
+     */
+    public function markAllRead(Model|int|string $user, ?array $typen = null): int
     {
         return Notification::query()
             ->forUser($this->id($user))
+            ->nurTypen($typen)
             ->unread()
             ->update([
                 Notification::column('is_read') => true,
@@ -102,9 +106,12 @@ class NotificationActions
             ->delete();
     }
 
-    public function deleteAll(Model|int|string $user): int
+    /**
+     * @param  array<int, string>|null  $typen  Nur diese Arten (pm #10227); `null` = alle.
+     */
+    public function deleteAll(Model|int|string $user, ?array $typen = null): int
     {
-        return Notification::query()->forUser($this->id($user))->delete();
+        return Notification::query()->forUser($this->id($user))->nurTypen($typen)->delete();
     }
 
     private function id(Model|int|string $user): int|string

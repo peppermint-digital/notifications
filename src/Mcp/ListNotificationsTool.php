@@ -60,7 +60,13 @@ class ListNotificationsTool extends Tool
             return Response::json(['items' => [], 'unread_count' => 0, 'source' => SourceLabels::local()]);
         }
 
-        $antwort = $feed->for($person);
+        // `types` (pm #10227): nur diese Arten, Zahl und Liste. Fehlt die
+        // Angabe, kommt alles wie bisher.
+        $typen = $request->get('types');
+        $antwort = (is_array($typen) ? $feed->nurTypen(array_values(array_map(
+            static fn ($typ): string => trim((string) $typ),
+            $typen,
+        ))) : $feed)->for($person);
 
         $grenze = min(max((int) ($request->get('limit') ?? 100), 1), 500);
 
@@ -83,6 +89,8 @@ class ListNotificationsTool extends Tool
         return [
             'limit' => $schema->integer()
                 ->description('How many at most. Default 100, maximum 500.'),
+            'types' => $schema->array()
+                ->description('Only these notification types ("" = without type). Items and unread_count follow it. Omit for all.'),
         ];
     }
 }

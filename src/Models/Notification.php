@@ -255,6 +255,32 @@ class Notification extends Model
     }
 
     /**
+     * Nur diese fachlichen Arten (pm #10227). `''` steht fuer Meldungen ohne
+     * Art (NULL oder leer), `null` fuer alle.
+     *
+     * @param  array<int, string>|null  $typen
+     */
+    public function scopeNurTypen(Builder $query, ?array $typen): Builder
+    {
+        if ($typen === null) {
+            return $query;
+        }
+
+        $spalte = static::column('type');
+        $benannt = array_values(array_filter($typen, static fn (string $typ): bool => $typ !== ''));
+        $ohneArt = in_array('', $typen, true);
+
+        return $query->where(function (Builder $q) use ($spalte, $benannt, $ohneArt): void {
+            // Eine leere Liste heisst „keine" — `whereIn` mit [] trifft nichts.
+            $q->whereIn($spalte, $benannt);
+
+            if ($ohneArt) {
+                $q->orWhereNull($spalte)->orWhere($spalte, '');
+            }
+        });
+    }
+
+    /**
      * Alle Meldungen am selben Gegenstand — die Grundlage der rollenden
      * Sammelmeldung: eine bestehende ungelesene Zeile aktualisieren, statt
      * eine zweite anzulegen.

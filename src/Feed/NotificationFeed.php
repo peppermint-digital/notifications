@@ -25,6 +25,28 @@ use Peppermint\Notifications\Models\Notification;
 class NotificationFeed
 {
     /**
+     * Nur diese Arten (pm #10227) — `null` heisst alle.
+     *
+     * @var array<int, string>|null
+     */
+    private ?array $typen = null;
+
+    /**
+     * Derselbe Feed, nur mit diesen Arten. Fuer ein anderes System, das nur
+     * einen Teil zeigt (`types` an list-notifications-tool und
+     * list-inbox-entries-tool): Liste UND Zahl folgen der Auswahl.
+     *
+     * @param  array<int, string>|null  $typen
+     */
+    public function nurTypen(?array $typen): static
+    {
+        $kopie = clone $this;
+        $kopie->typen = $typen;
+
+        return $kopie;
+    }
+
+    /**
      * Die Liste in der Form, die alle Ansichten erwarten.
      *
      * @return array{items: array<int, array<string, mixed>>, unread_count: int}
@@ -58,7 +80,7 @@ class NotificationFeed
     {
         $empfaenger = $user instanceof Model ? $user->getKey() : $user;
 
-        return Notification::query()->forUser($empfaenger)->unread()->count();
+        return Notification::query()->forUser($empfaenger)->nurTypen($this->typen)->unread()->count();
     }
 
     /**
@@ -73,6 +95,7 @@ class NotificationFeed
         // Zeile selbst.
         $meldungen = Notification::query()
             ->forUser($empfaenger)
+            ->nurTypen($this->typen)
             ->where(function ($query): void {
                 $query
                     ->where(Notification::column('is_read'), false)
